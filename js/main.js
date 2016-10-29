@@ -1,31 +1,8 @@
-/*
-  TODO:
-
-  Consider loading the lua vm via ajax to speed up initial load time
-
-  Add sprites via a spritesheet (use Lost Garden)
-
-  Keyboard?
-*/
-
 
 /*
-Set up Lua output to a div with id #output
+Set up output to a div with id #output
 */
 var Module = {
-    print: function(x) {
-	var out = $('#output');
-	if (!out.is(':empty')) {
-	    out.append($('<br>'));
-	}
-/*	var txt = $('#output').text();
-	txt = (txt ? txt + '\n' : '') + x;
-	$('#output').text(txt);
-*/
-	out.append(document.createTextNode(x));
-	var outdiv = $('#outdiv');
-	outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
-    }
 }
 
 // shim layer with setTimeout fallback
@@ -55,7 +32,7 @@ var qs = (function(a) {
 })(window.location.search.substr(1).split('&'));
 
 /*
-Initialise code editor and lua interpreter
+Initialise code editor
 */
 function init() {
     var cm = CodeMirror.fromTextArea(document.getElementById('code'),
@@ -65,11 +42,12 @@ function init() {
 				     electricChars: true,
 				     autoCloseBrackets: true,
 				     matchBrackets: true,
+				     mode: "javascript"
 				 }
 				);
     var cvs = $('#cvs')[0];
     var ctx = cvs.getContext('2d');
-    var lc = new LuaCanvas(ctx,$('#output'),$('#parameters'));
+    var jc = new jsCanvas(ctx,$('#output'),$('#parameters'));
     var tabs = new Tabs($('#tabs'),cm);
     var code = localStorage.getItem('code');
     if (code !== null) {
@@ -78,50 +56,28 @@ function init() {
 	if (title !== null) {
 	    $('#title').text(title);
 	}
-	var gr = localStorage.getItem('graphics');
-	if (gr !== null) {
-	    $('#graphics').prop('checked',gr);
-	}
-    } else {
-	if ($('#graphics').is(':checked')) {
-	    cm.setValue($('#lua_template').text().trim());
-	}
     }
 
     $('#panel').data('origWidth',$('#panel').width());
 
     $('#execute').click(function() {
-	var g = $('#graphics').is(':checked');
-	runCode(lc,tabs,g);
+	runCode(jc,tabs);
 	return false;
-    });
-    $('#graphics').change(function() {
-	tabs.reset();
-	if ($(this).is(':checked')) {
-	    cm.setValue($('#lua_template').text().trim());
-	} else {
-	    cm.setValue('');
-	}
     });
     $('#edit').click(function() { 
-	startEditing(lc); 
+	startEditing(jc); 
 	return false;
     });
-    $('#pause').click(lc.pauseCode);
+    $('#pause').click(jc.pauseCode);
     $('#restart').click(function() {
 	$('#pause').text('Pause');
-	lc.restartCode();
+	jc.restartCode();
 	return false;
     });
     $('#save').click(function(e) {tabs.saveCode(e,cm)});
     $('#load').change(function(e) {tabs.loadCode(e,cm)});
     $('#clear').click(function(e) {
 	tabs.reset();
-	if ($('#graphics').is(':checked')) {
-	    cm.setValue($('#lua_template').text().trim());
-	} else {
-	    cm.setValue('');
-	}
 	$('#title').text('Project');
 	return false;
     });
@@ -130,7 +86,7 @@ function init() {
 	return false;
     });
 
-    startEditing(lc);
+    startEditing(jc);
     var theme = localStorage.getItem('theme');
     if (theme != '') {
 	$('#theme option').filter(function () { return $(this).html() == theme}).attr('selected', 'selected');
@@ -143,7 +99,7 @@ function init() {
 	    project = project.slice(0,-1);
 	}
 	$.ajax({
-	    url: "projects/" + project + ".lua",
+	    url: "projects/" + project + ".js",
 	}).done(function(data) {
 	    tabs.setCode(data);
 	    $('#title').text(project);
@@ -172,11 +128,11 @@ function selectTheme(cm) {
 }
 
 /*
-Start editing: ensure that the lua draw cycle isn't running and show the relevant divs.
+Start editing: ensure that the js draw cycle isn't running and show the relevant divs.
 */
-function startEditing(lc) {
-    if (lc)
-	lc.stopLua();
+function startEditing(jc) {
+    if (jc)
+	jc.stopJS();
     $('#run').css('display','none');
     $('#runButtons').css('display','none');
     $('#editButtons').css('display','block');
@@ -200,47 +156,37 @@ function setEditorSize() {
 /*
 Set the canvas to be as big as possible on the screen.
 */
-function setExecuteSize(g) {
+function setExecuteSize() {
     $('#panel').height($(window).height());
     var h = 2*$(window).height() - $(document).height();
     $('#panel').height(h);
-    if (g) {
-	$('#panel').width($('#panel').data('origWidth'));
-	$('#canvas').css('display','block');
-	var w = $('#container').width();
-	w -= $('#panel').outerWidth() + 30;
-	$('#canvas').height(h);
-	$('#cvs').attr('width',w);
-	$('#cvs').attr('height',h - 6); // not sure why 6 here
-	$('#restart').css('display','inline');
-	$('#pause').css('display','inline');
-	$('#paramdiv').css('display','block');
-	$('#outdiv').css('height','50%');
-    } else {
-	$('#canvas').css('display','none');
-	$('#panel').width($('#container').width() - 40);
-	$('#restart').css('display','inline');
-	$('#pause').css('display','none');
-	$('#paramdiv').css('display','none');
-	$('#outdiv').css('height','100%');
-    }
+    $('#panel').width($('#panel').data('origWidth'));
+    $('#canvas').css('display','block');
+    var w = $('#container').width();
+    w -= $('#panel').outerWidth() + 30;
+    $('#canvas').height(h);
+    $('#cvs').attr('width',w);
+    $('#cvs').attr('height',h - 6); // not sure why 6 here
+    $('#restart').css('display','inline');
+    $('#pause').css('display','inline');
+    $('#paramdiv').css('display','block');
+    $('#outdiv').css('height','50%');
 }
 
 /*
 Get the code from the editor and pass it to the interpreter
 */
-function runCode(lc,tabs,g) {
+function runCode(jc,tabs) {
     $('#editor').css('display','none');
     $('#editButtons').css('display','none');
     $('#runButtons').css('display','block');
     $('#run').css('display','block');
-    setExecuteSize(g);
+    setExecuteSize();
     var code = tabs.getCode();
     localStorage.setItem('code',code);
     localStorage.setItem('title',$('#title').text());
-    localStorage.setItem('graphics',$('#graphics').is(':checked'));
-    code = tabs.getCode(true);
-    lc.executeLua(code,true,g);
+    code = tabs.getCode();
+    jc.executeJS(code,true);
     return false;
 }
 
@@ -291,8 +237,8 @@ function Tabs(t,cm) {
 	var pre;
 	var post;
 	if (b) {
-	    pre = '\ndo\n';
-	    post = '\nend\n';
+	    pre = '\n(function() {\n';
+	    post = '\n})();\n';
 	} else {
 	    pre = '\n\n';
 	    post = '\n\n';
@@ -302,7 +248,7 @@ function Tabs(t,cm) {
 	tabs[ctab] = cm.getValue().trim() + '\n';
 	$('.tabtitle').each(function(e) {
 	    if (tabs[$(this).last().text()])
-		code += '\n--## ' + $(this).last().text() + pre + tabs[$(this).last().text()] + post;
+		code += '\n//## ' + $(this).last().text() + pre + tabs[$(this).last().text()] + post;
 	});
 	return code;
     }
@@ -315,11 +261,11 @@ function Tabs(t,cm) {
 	var title = $('#title').text().trim();
 	var blob = new Blob([code], {'type':'text/plain'});
 	if (typeof window.navigator.msSaveBlob === 'function') {
-	    window.navigator.msSaveBlob(blob, title + '.lua');
+	    window.navigator.msSaveBlob(blob, title + '.js');
 	} else {
 	    var a = $(e.currentTarget);
 	    a.attr('href', window.URL.createObjectURL(blob));
-	    a.attr('download', title + '.lua');
+	    a.attr('download', title + '.js');
 	}
     }
     
@@ -343,7 +289,7 @@ function Tabs(t,cm) {
       Insert the code into tabs
     */
     this.setCode = function(c) {
-	var code = c.split(/\n(--## [^\n]*)\n/);
+	var code = c.split(/\n(\/\/## [^\n]*)\n/);
 	var i = 0;
 	var match;
 	var tab;
@@ -352,7 +298,7 @@ function Tabs(t,cm) {
 	tabs = {};
 	$('.tab').remove();
 	while(i < code.length) {
-	    match = code[i].match(/^--## ([^\n]+)/);
+	    match = code[i].match(/^\/\/## ([^\n]+)/);
 	    if (match !== null) {
 		tabs[match[1]] = code[++i].trim();
 		if (first || match[1] == "Main" ) {
@@ -469,25 +415,24 @@ function Tabs(t,cm) {
     return this;
 }
 /*
-This is our wrapper around the lua interpreter
+This is our wrapper around the js execution
 */
-function LuaCanvas(c,o,p) {
+function jsCanvas(c,o,p) {
     var self = this; // keep hold of this
     var ctx = c; // canvas context
     var gctx = c; // so that we never lose the base canvas 
     var output = o; // output pane
     var params = p; // parameters pane
-    var luaDraw; // the draw cycle timer
-    var LuaState; // transformation and style and similar
-    var LuaGrExt; // our graphical extensions
-    var LuaExt; // our non-graphical extensions
+    var jsDraw; // the draw cycle timer
+    var jsState; // transformation and style and similar
+    var jsGrExt; // our graphical extensions
+    var jsExt; // our non-graphical extensions
     var threadResume; // thread in non-graphical mode
     var threadYield; // thread in non-graphical mode
-    var LuaG; // Lua's _G table
+    var jsG; // a global table
     var sTime; // time at which the script started
     var inTouch; // used for handling touches
     var code; // saves the current code in case we restart
-    var graphics; // are we in graphics mode?
     var imgNum = 0; // generated images
     var blendmodes = { // all the various blend modes
 	sourceOver: 'source-over',
@@ -521,50 +466,34 @@ function LuaCanvas(c,o,p) {
     /*
       This does the actual execution
      */
-    this.executeLua = function(c,cl,g) {
+    this.executeJS = function(c,cl) {
 	code = c;
-	graphics = g;
-	var lcode = self.prelua(g);
-	var offset = lcode.split('\n').length - 1;
-	lcode += '\n' + code + '\n' + self.postlua(g);
+	jsG = new Table;
+	self.initialiseJS();
+	var jcode = self.prejs();
+	var offset = jcode.split('\n').length - 1;
+	jcode += '\n' + code + '\n' + self.postjs();
 	if (cl) {
 	    output.text('');
 	    output.css('color','black');
 	    self.clear();
 	}
-	var L = new Lua.State;
-	LuaG = L._G;
-	self.initialiseLua(g);
 	sTime = Date.now();
+	$(ctx.canvas).focus();
 	try {
-	    L.execute(lcode);
-	} catch(e) {
-	    self.doError(e);
-	}
+	    eval(jcode);
+	} catch (e) {
+	    if (e instanceof SyntaxError) {
+		self.doError(e.message);
+	    } else {
+		throw( e );
+	    }
+	};
     }
 
     this.doError = function(e) {
-	var emsg;
-	var lcode = self.prelua(graphics);
-	var offset = lcode.split('\n').length - 1;
-	lcode += '\n' + code + '\n' + self.postlua(graphics);
-	if (e.toString().search(/:(\d+):/) != -1) {
-	    var eline = e.toString().match(/:(\d+):/)[1];
-	    var lines = lcode.split('\n');
-	    var tab,m,n = 0;
-	    for (var i = 0; i< eline; i++) {
-		if (lines[i].search(/^--##/) != -1) {
-		    m = lines[i].match(/^--## (.*)/);
-		    tab = m[1];
-		    n = i;
-		}
-	    }
-	    emsg = e.toString().replace(/.*:(\d+):\s*/, function(a,b) { return 'Tab: ' + tab + '\nLine: ' + (parseInt(b,10) - n - 2) + '\n' });
-	} else {
-	    emsg = e.toString();
-	}
-	output.css('color','red');
-	output.text(emsg);
+	console.log('Error found:');
+	console.log(e);
     }
 
     
@@ -572,16 +501,16 @@ function LuaCanvas(c,o,p) {
       Restart the code from fresh
     */
     this.restartCode = function() {
-	self.stopLua();
-	self.executeLua(code,true,graphics);
+	self.stopJS();
+	self.executeJS(code,true);
     }
     
     /*
       Stops the draw cycle
      */
-    this.stopLua = function() {
-	if (luaDraw) {
-	    luaDraw.stop();
+    this.stopJS = function() {
+	if (jsDraw) {
+	    jsDraw.stop();
 	}
     }
     
@@ -590,12 +519,12 @@ function LuaCanvas(c,o,p) {
       TODO: adjust sTime accordingly
     */
     this.pauseCode = function(e) {
-	if (luaDraw) {
-	    if (luaDraw.isPaused) {
-		luaDraw.resume();
+	if (jsDraw) {
+	    if (jsDraw.isPaused) {
+		jsDraw.resume();
 		$(e.target).text('Pause');
 	    } else {
-		luaDraw.pause();
+		jsDraw.pause();
 		$(e.target).text('Resume');
 	    }
 	}
@@ -605,7 +534,7 @@ function LuaCanvas(c,o,p) {
     /*
       Returns a vanilla state (transformation,styles,etc)
      */
-    this.getLuaState = function() {
+    this.getState = function() {
 	return {
 	    transformation: [
 		new Transformation(),
@@ -647,12 +576,13 @@ function LuaCanvas(c,o,p) {
 		blendMode: 'source-over'
 	    },
 	    touches: [],
+	    keys: [],
 	    watches: [],
 	    parameters: []
 	}
     }
     
-    LuaState = this.getLuaState();
+    jsState = this.getState();
 
     /*
       Apply a style
@@ -673,7 +603,7 @@ function LuaCanvas(c,o,p) {
     }
 
     this.applyTransformation = function(x,y) {
-	var p = LuaState.transformation[0].applyTransformation(x,y);
+	var p = jsState.transformation[0].applyTransformation(x,y);
 	var ch = ctx.canvas.height;
 	p.y *= -1;
 	p.y += ch;
@@ -681,7 +611,7 @@ function LuaCanvas(c,o,p) {
     }
 
     this.applyTransformationNoShift = function(x,y) {
-	var p = LuaState.transformation[0].applyTransformationNoShift(x,y);
+	var p = jsState.transformation[0].applyTransformationNoShift(x,y);
 	p.y *= -1;
 	return p;
     }
@@ -761,35 +691,55 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		deltaY: dy
 	    };
 	    prevTouch = t;
-	    LuaState.touches.push(t);
+	    jsState.touches.push(t);
 	}
     })();
 
-    this.prelua = function(g) {
-	var str = 'print() clearOutput() ' +
-	    $('#lua_class').text() + ' ';
-	if (g) {
-	    str += $('#lua_parameters').text() +
-		' do ' +
-		'stroke(255,255,255) ' +
-		'fill(0,0,0) '
-	} else {
-	    str += 'do local __p = __prompt __prompt = nil function prompt(t) __p(t) local _,b = coroutine.yield() return b end end local __thread = coroutine.wrap(function() ';
+    /*
+      For tracking keys
+    */
+
+    this.recordKey = function(e) {
+	e.preventDefault();
+	var s;
+	if (e.type == 'keydown') {
+	    s = 0;
+	} else if (e.type == 'keypress') {
+	    s = 1;
+	} else if (e.type == 'keyup') {
+	    s = 2;
 	}
-	str += 'do ';
+	var k = {
+	    state: s,
+	    time: e.timeStamp - sTime,
+	    key: e.originalEvent.key,
+	    code: e.originalEvent.code,
+	    repeat: e.originalEvent.repeat,
+	    shift: e.originalEvent.shiftKey,
+	    meta: e.originalEvent.metaKey,
+	    ctrl: e.originalEvent.ctrlKey,
+	    alt: e.originalEvent.altKey,
+	};
+	jsState.keys.push(k);
+    }
+
+    $(ctx.canvas).on('keydown keypress keyup',self.recordKey);
+
+    this.prejs = function() {
+	var str = '(function() { '
+	    + jsG.getProperties()
+	    + ' setter = eval(jsG.makeSetter()); jsG.setAll(setter); print(); clearOutput(); '
+	    + '(function() { '
+	    + 'stroke(255,255,255); '
+	    + 'fill(0,0,0); ';
 	return str;
     }
 
-    this.postlua = function(g) {
-	var str = ' end ';
-	if (g) {
-	    str +=
-	    'setup() ' +
-	    'do initCycle(draw,function (...) touched(select(2,...)) end) end ' +
-	    'end';
-	} else {
-	    str += ' end) initThread(__thread) ';
-	}
+    this.postjs = function() {
+	var str =
+	    'setup(); ' +
+	    'initCycle(draw,touched,key); ' +
+	    '})(); })();';
 	return str;
     }
 
@@ -801,112 +751,96 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	}
     }
 
-    this.initCycle = (function () {
-	var time;
-	var itime;
-	var draw;
-	var touched;
-
-	function doCycle() {
-	    var t = Date.now();
-	    var dt = t - time;
-	    LuaG.set('ElapsedTime',t - itime);
-	    LuaG.set('DeltaTime',t - time);
-	    time = t;
-	    luaDraw = new Animation(
-		function() {
-		    LuaState.transformation = [new Transformation()];
-		    ctx = gctx;
-		    LuaState.parameters.forEach(
-			function(f) { f() }
-		    );
-		    try {
-			draw();
-		    } catch(e) {
-			self.doError(e);
-		    }
-		    LuaState.touches.forEach(
-			function(t) {
-			    try {
-				touched(t);
-			    } catch(e) {
-				self.doError(e);
-			    }
+    this.initCycle = function (draw,touched,key) {
+	jsDraw = new Animation(
+	    function(et,dt) {
+		jsG.set('ElapsedTime',et);
+		jsG.set('DeltaTime',dt);
+		jsState.transformation = [new Transformation()];
+		ctx = gctx;
+		jsState.parameters.forEach(
+		    function(f) { f() }
+		);
+		try {
+		    draw();
+		} catch(e) {
+		    self.doError(e);
+		}
+		jsState.touches.forEach(
+		    function(t) {
+			try {
+			    touched(t);
+			} catch(e) {
+			    self.doError(e);
 			}
-		    );
-		    LuaState.touches = [];
-		    LuaState.watches.forEach(function(v) {v()});
-		    doCycle();
-		},
-		Math.max(10 - dt,0)
-	    );
-	}
-    
-	return function(d,t) {
-	    draw = d;
-	    touched = t;
-	    time = sTime;
-	    itime = sTime;
-	    etime = 0;
-	    doCycle();
-	}
+		    }
+		);
+		jsState.keys.forEach(
+		    function(k) {
+			try {
+			    key(k);
+			} catch(e) {
+			    self.doError(e);
+			}
+		    }
+		);
+		jsState.touches = [];
+		jsState.keys = [];
+		jsState.watches.forEach(function(v) {v()});
+	    }
+	);
+    }
 	
-    })();
 
-    this.initialiseLua = function(gr) {
-	var g = LuaG;
+    this.initialiseJS = function() {
+	var g = jsG;
 	params.empty();
-	if (gr) {
-	    // Canvas dimensions
-	    g.set('WIDTH',parseInt($(ctx.canvas).attr('width'),10));
-	    g.set('HEIGHT',parseInt($(ctx.canvas).attr('height'),10));
-	    // Rectangle and Ellipse modes
-	    g.set('CORNER',0);
-	    g.set('CORNERS',1);
-	    g.set('CENTER',2);
-	    g.set('CENTRE',2);
-	    g.set('RADIUS',3);
-	    // Text horizontal alignment
-	    g.set('LEFT',0);
-	    g.set('RIGHT',1);
-	    // Text vertical alignment
-	    g.set('BOTTOM',0);
-	    g.set('BASELINE',1);
-	    g.set('TOP',3);
-	    // Bezier control point and Arc angle
-	    g.set('ABSOLUTE',0);
-	    g.set('RELATIVE',1);
-	    // line cap
-	    g.set('ROUND',0);
-	    g.set('SQUARE',1);
-	    g.set('PROJECT',2);
-	    // touches
-	    g.set('BEGAN',0);
-	    g.set('MOVING',1);
-	    g.set('ENDED',2);
-	    Object.keys(LuaGrExt).forEach(function(v,i,a) {
-		g.set(v, LuaGrExt[v]);
-	    })
-	    g.set('ElapsedTime',0);
-	    g.set('DeltaTime',0);
-	    g.set('blendmodes',blendmodes);
-	    g.set('setup', function() {});
-	    g.set('draw', function() {});
-	    g.set('touched', function() {});
-	    LuaState = this.getLuaState();
-	    self.applyStyle(LuaState.defaultStyle);
-	} else {
-	    Object.keys(LuaExt).forEach(function(v,i,a) {
-		g.set(v, LuaExt[v]);
-	    })
-
-	}
+	// Canvas dimensions
+	g.set('WIDTH',parseInt($(ctx.canvas).attr('width'),10));
+	g.set('HEIGHT',parseInt($(ctx.canvas).attr('height'),10));
+	// Rectangle and Ellipse modes
+	g.set('CORNER',0);
+	g.set('CORNERS',1);
+	g.set('CENTER',2);
+	g.set('CENTRE',2);
+	g.set('RADIUS',3);
+	// Text horizontal alignment
+	g.set('LEFT',0);
+	g.set('RIGHT',1);
+	// Text vertical alignment
+	g.set('BOTTOM',0);
+	g.set('BASELINE',1);
+	g.set('TOP',3);
+	// Bezier control point and Arc angle
+	g.set('ABSOLUTE',0);
+	g.set('RELATIVE',1);
+	// line cap
+	g.set('ROUND',0);
+	g.set('SQUARE',1);
+	g.set('PROJECT',2);
+	// touches
+	g.set('BEGAN',0);
+	g.set('MOVING',1);
+	g.set('PRESSED',1);
+	g.set('ENDED',2);
+	Object.keys(jsGrExt).forEach(function(v,i,a) {
+	    g.set(v, jsGrExt[v]);
+	})
+	g.set('ElapsedTime',0);
+	g.set('DeltaTime',0);
+	g.set('blendmodes',blendmodes);
+	g.set('setup', function() {});
+	g.set('draw', function() {});
+	g.set('touched', function() {});
+	g.set('key', function() {});
+	jsState = this.getState();
+	self.applyStyle(jsState.defaultStyle);
     }
 
     /*
       First argument is passed as 'this'.
     */
-    LuaExt = {
+    jsExt = {
 	clearOutput: function() {
 	    output.text('');
 	},
@@ -924,22 +858,42 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    output.append(tbox);
 	    tbox.keyup(self.coresume);
 	},
+	print: function(x) {
+	    var out = $('#output');
+	    if (!out.is(':empty')) {
+		out.append($('<br>'));
+	    }
+/*	var txt = $('#output').text();
+	txt = (txt ? txt + '\n' : '') + x;
+	$('#output').text(txt);
+*/
+	    out.append(document.createTextNode(x));
+	    var outdiv = $('#outdiv');
+	    outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
+	},
 	initThread: function() {
 	    threadResume = this;
 	    threadResume();
 	}
     }
     
-    LuaGrExt = {
-	initCycle: function(t) {
-	    var d = this;
-	    self.initCycle(d,t);
+    jsGrExt = {
+	initCycle: function(d,t,k) {
+	    self.initCycle(d,t,k);
 	},
 	clearOutput: function() {
 	    output.text('');
 	},
-	rect: function(y,w,h) {
-	    var x = this;
+	print: function(x) {
+	    var out = $('#output');
+	    if (!out.is(':empty')) {
+		out.append($('<br>'));
+	    }
+	    out.append(document.createTextNode(x));
+	    var outdiv = $('#outdiv');
+	    outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
+	},
+	rect: function(x,y,w,h) {
 	    if (x instanceof Vec2) {
 		h = w;
 		w = y;
@@ -953,13 +907,13 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    if (typeof(h) === "undefined") {
 		h = w;
 	    }
-	    if (LuaState.style[0].rectMode == 1) {
+	    if (jsState.style[0].rectMode == 1) {
 		w -=x;
 		h -=y;
-	    } else if (LuaState.style[0].rectMode == 2) {
+	    } else if (jsState.style[0].rectMode == 2) {
 		x -= w/2;
 		y -= h/2;
-	    } else if (LuaState.style[0].rectMode == 3) {
+	    } else if (jsState.style[0].rectMode == 3) {
 		x -= w/2;
 		y -= h/2;
 		w *= 2;
@@ -973,48 +927,43 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
 	    ctx.rect(0,0,1,1);
 	    ctx.restore();
-	    if (LuaState.style[0].fill) {
+	    if (jsState.style[0].fill) {
 		ctx.fill();
 	    }
-	    if (LuaState.style[0].stroke) {
+	    if (jsState.style[0].stroke) {
 		ctx.stroke();
 	    }
 	},
-	rectMode: function() {
-	    var m = this;
-	    if (this !== window) {
-		LuaState.style[0].rectMode = m;
+	rectMode: function(m) {
+	    if (typeof m !== 'undefined') {
+		jsState.style[0].rectMode = m;
 	    } else {
-		return LuaState.style[0].rectMode;
+		return jsState.style[0].rectMode;
 	    }
 	},
-	arcMode: function() {
-	    var m = this;
-	    if (this !== window) {
-		LuaState.style[0].arcMode = m;
+	arcMode: function(m) {
+	    if (m !== 'undefined') {
+		jsState.style[0].arcMode = m;
 	    } else {
-		return LuaState.style[0].arcMode;
+		return jsState.style[0].arcMode;
 	    }
 	},
-	bezierMode: function() {
-	    var m = this;
-	    if (this !== window) {
-		LuaState.style[0].bezierMode = m;
+	bezierMode: function(m) {
+	    if (m !== 'undefined') {
+		jsState.style[0].bezierMode = m;
 	    } else {
-		return LuaState.style[0].bezierMode;
+		return jsState.style[0].bezierMode;
 	    }
 	},
-	blendMode: function() {
-	    var m = this;
-	    if (this !== window) {
-		LuaState.style[0].blendMode = m;
+	blendMode: function(m) {
+	    if (m !== 'undefined') {
+		jsState.style[0].blendMode = m;
 		ctx.globalCompositeOperation = m;
 	    } else {
-		return LuaState.style[0].blendMode;
+		return jsState.style[0].blendMode;
 	    }
 	},
-	background: function(g,b,a) {
-	    var c = this;
+	background: function(c,g,b,a) {
 	    if (!(c instanceof Colour)) {
 		c = new Colour(c,g,b,a);
 	    }
@@ -1026,51 +975,47 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
 	    ctx.restore();
 	},
-	fill: function (g,b,a) {
-	    var c = this;
-	    if (c !== window) {
+	fill: function (c,g,b,a) {
+	    if (typeof c != 'undefined') {
 		if (!(c instanceof Colour)) {
 		    c = new Colour(c,g,b,a);
 		}
 		ctx.fillStyle = c.toCSS();
-		LuaState.style[0].fillColour = c;
-		LuaState.style[0].fill = true;
+		jsState.style[0].fillColour = c;
+		jsState.style[0].fill = true;
 	    } else {
 		return ctx.fillStyle;
 	    }
 	},
-	stroke: function (g,b,a) {
-	    var c = this;
-	    if (c !== window) {
+	stroke: function (c,g,b,a) {
+	    if (typeof c != 'undefined') {
 		var c;
 		if (!(c instanceof Colour)) {
 		    c = new Colour(c,g,b,a);
 		}
 		ctx.strokeStyle = c.toCSS();
-		LuaState.style[0].strokeColour = c;
-		LuaState.style[0].stroke = true;
+		jsState.style[0].strokeColour = c;
+		jsState.style[0].stroke = true;
 	    } else {
 		return ctx.strokeStyle;
 	    }
 	},
-	strokeWidth: function () {
-	    var w = this;
-	    if (w !== window) {
+	strokeWidth: function (w) {
+	    if (typeof w != 'undefined') {
 		ctx.lineWidth = w;
-		LuaState.style[0].strokeWidth = w;
-		LuaState.style[0].stroke = true;
+		jsState.style[0].strokeWidth = w;
+		jsState.style[0].stroke = true;
 	    } else {
 		return ctx.lineWidth;
 	    }
 	},
 	noFill: function() {
-	    LuaState.style[0].fill = false;
+	    jsState.style[0].fill = false;
 	},
 	noStroke: function() {
-	    LuaState.style[0].stroke = false;
+	    jsState.style[0].stroke = false;
 	},
-	line: function (y,xx,yy) {
-	    var x = this;
+	line: function (x,y,xx,yy) {
 	    if (x instanceof Vec2) {
 		yy = xx;
 		xx = y;
@@ -1081,7 +1026,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		yy = xx.y;
 		xx = xx.x;
 	    }
-	    if (LuaState.style[0].stroke) {
+	    if (jsState.style[0].stroke) {
 		var p = self.applyTransformation(x,y);
 		var pp = self.applyTransformation(xx,yy);
 		ctx.beginPath();
@@ -1093,8 +1038,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 /*
 How should the angles interact with the transformation?
 */
-	arc: function(y,r,sa,ea,cl) {
-	    var x = this;
+	arc: function(x,y,r,sa,ea,cl) {
 	    if (x instanceof Vec2) {
 		cl = ea;
 		ea = sa;
@@ -1103,7 +1047,7 @@ How should the angles interact with the transformation?
 		y = x.y;
 		x = x.x;
 	    }
-	    if (LuaState.style[0].arcMode == 1)
+	    if (jsState.style[0].arcMode == 1)
 		ea += sa;
 	    sa *= Math.PI/180;
 	    ea *= Math.PI/180;
@@ -1115,12 +1059,11 @@ How should the angles interact with the transformation?
 	    ctx.setTransform(q.x,q.y,s.x,s.y,p.x,p.y);
 	    ctx.arc(0,0,1,sa,ea,cl);
 	    ctx.restore();
-	    if (LuaState.style[0].stroke) {
+	    if (jsState.style[0].stroke) {
 		ctx.stroke();
 	    }
 	},
-	bezier: function(ay,bx,by,cx,cy,dx,dy) {
-	    var ax = this;
+	bezier: function(ax,ay,bx,by,cx,cy,dx,dy) {
 	    if (ax instanceof Vec2) {
 		dy = dx;
 		dx = cy;
@@ -1150,7 +1093,7 @@ How should the angles interact with the transformation?
 		dx = dx.x;
 	    }
 
-	    if (LuaState.style[0].bezierMode == 1) {
+	    if (jsState.style[0].bezierMode == 1) {
 		cy += dy;
 		cx += dx;
 		by += ay;
@@ -1171,13 +1114,12 @@ How should the angles interact with the transformation?
 	    ctx.moveTo(0,0);
 	    ctx.bezierCurveTo(bx,by,cx,cy,dx,dy);
 	    ctx.restore();
-	    if (LuaState.style[0].stroke) {
+	    if (jsState.style[0].stroke) {
 		ctx.stroke();
 	    }
 	},
-	lineCapMode: function() {
-	    var m = this;
-	    if (m !== window) {
+	lineCapMode: function(m) {
+	    if (typeof m !== 'undefined') {
 		if (m == 0) {
 		    ctx.lineCap = "round";
 		} else if (m == 1) {
@@ -1185,37 +1127,36 @@ How should the angles interact with the transformation?
 		} else if (m == 2) {
 		    ctx.lineCap = "square";
 		}
-		LuaState.style[0].lineCapMode = m;
+		jsState.style[0].lineCapMode = m;
 	    } else {
-		return LuaState.style[0].lineCapMode;
+		return jsState.style[0].lineCapMode;
 	    }
 	},
-	text: function (x,y) {
+	text: function (s,x,y) {
 	    if (x instanceof Vec2) {
 		y = x.y;
 		x = x.x;
 	    }
-	    var s = this;
 	    var p = self.applyTransformation(x,y);
 	    var q = self.applyTransformationNoShift(1,0).normalise();
 	    var r = self.applyTransformationNoShift(0,-1).normalise();
-	    if (LuaState.style[0].textMode == 1) {
+	    if (jsState.style[0].textMode == 1) {
 		var tm = ctx.measureText(s);
 		p = p.__sub(q.__mul(tm.width));
-	    } else if (LuaState.style[0].textMode == 2) {
+	    } else if (jsState.style[0].textMode == 2) {
 		var tm = ctx.measureText(s);
 		p = p.__sub(q.__mul(tm.width/2));
 	    }
-	    if (LuaState.style[0].textValign == 0) {
-		var f = LuaState.style[0].fontSize + 'px ' + LuaState.style[0].font;
+	    if (jsState.style[0].textValign == 0) {
+		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
 		var fm = getTextHeight(f,s);
 		p = p.__sub(r.__mul(fm.descent));
-	    } else if (LuaState.style[0].textValign == 2) {
-		var f = LuaState.style[0].fontSize + 'px ' + LuaState.style[0].font;
+	    } else if (jsState.style[0].textValign == 2) {
+		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
 		var fm = getTextHeight(f,s);
 		p = p.__add(r.__mul(fm.height/2-fm.descent));
-	    } else if (LuaState.style[0].textValign == 3) {
-		var f = LuaState.style[0].fontSize + 'px ' + LuaState.style[0].font;
+	    } else if (jsState.style[0].textValign == 3) {
+		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
 		var fm = getTextHeight(f,s);
 		p = p.__add(r.__mul(fm.ascent));
 	    }
@@ -1225,55 +1166,49 @@ How should the angles interact with the transformation?
 	    ctx.fillText(s,0,0);
 	    ctx.restore();
 	},
-	textMode: function() {
-	    var m = this;
-	    if (m !== window) {
+	textMode: function(m) {
+	    if (typeof m !== 'undefined') {
 		if (m == 0) {
-		    LuaState.style[0].textMode = 0;
+		    jsState.style[0].textMode = 0;
 		} else if (m == 1) {
-		    LuaState.style[0].textMode = 1;
+		    jsState.style[0].textMode = 1;
 		} else if (m == 2) {
-		    LuaState.style[0].textMode = 2;
+		    jsState.style[0].textMode = 2;
 		}
 	    } else {
-		return LuaState.style[0].textMode;
+		return jsState.style[0].textMode;
 	    }
 	},
-	textValign: function() {
-	    var m = this;
-	    if (m !== window) {
+	textValign: function(m) {
+	    if (typeof m !== 'undefined') {
 		if (m == 0) {
-		    LuaState.style[0].textValign = 0;
+		    jsState.style[0].textValign = 0;
 		} else if (m == 1) {
-		    LuaState.style[0].textValign = 1;
+		    jsState.style[0].textValign = 1;
 		} else if (m == 2) {
-		    LuaState.style[0].textValign = 2;
+		    jsState.style[0].textValign = 2;
 		} else if (m == 3) {
-		    LuaState.style[0].textValign = 3;
+		    jsState.style[0].textValign = 3;
 		}
 	    } else {
-		return LuaState.style[0].textValign;
+		return jsState.style[0].textValign;
 	    }
 	},
-	textSize: function() {
-	    var s = this;
+	textSize: function(s) {
 	    var tm = ctx.measureText(s);
-	    var f = LuaState.style[0].fontSize + 'px ' + LuaState.style[0].font;
+	    var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
 	    var fm = getTextHeight(f,s);
 	    return tm.width,fm.height;
 	},
-	font: function () {
-	    var f = this;
-	    LuaState.style[0].font = f;
-	    ctx.font = LuaState.style[0].fontSize + 'px ' + f;
+	font: function (f) {
+	    jsState.style[0].font = f;
+	    ctx.font = jsState.style[0].fontSize + 'px ' + f;
 	},
-	fontSize: function () {
-	    var f = this;
-	    LuaState.style[0].fontSize = f;
-	    ctx.font = f + 'px ' + LuaState.style[0].font;
+	fontSize: function (f) {
+	    jsState.style[0].fontSize = f;
+	    ctx.font = f + 'px ' + jsState.style[0].font;
 	},
-	ellipse: function (y,w,h) {
-	    var x = this;
+	ellipse: function (x,y,w,h) {
 	    if (x instanceof Vec2) {
 		h = w;
 		w = y;
@@ -1287,13 +1222,13 @@ How should the angles interact with the transformation?
 	    if (typeof(h) === "undefined") {
 		h = w;
 	    }
-	    if (LuaState.style[0].ellipseMode == 1) {
+	    if (jsState.style[0].ellipseMode == 1) {
 		w -=x;
 		h -=y;
-	    } else if (LuaState.style[0].ellipseMode == 2) {
+	    } else if (jsState.style[0].ellipseMode == 2) {
 		x -= w/2;
 		y -= h/2;
-	    } else if (LuaState.style[0].ellipseMode == 3) {
+	    } else if (jsState.style[0].ellipseMode == 3) {
 		x -= w/2;
 		y -= h/2;
 		w *= 2;
@@ -1307,156 +1242,138 @@ How should the angles interact with the transformation?
 	    ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
 	    ctx.arc(0,0,1,0, 2 * Math.PI,false);
 	    ctx.restore();
-	    if (LuaState.style[0].fill) {
+	    if (jsState.style[0].fill) {
 		ctx.fill();
 	    }
-	    if (LuaState.style[0].stroke) {
+	    if (jsState.style[0].stroke) {
 		ctx.stroke();
 	    }
 	},
-	circle: function (y,r) {
-	    var x = this;
+	circle: function (x,y,r) {
 	    if (x instanceof Vec2) {
 		r = y;
 		y = x.y;
 		x = x.x;
 	    }
-	    if (LuaState.style[0].ellipseMode == 1) {
+	    if (jsState.style[0].ellipseMode == 1) {
 		r -=x;
-	    } else if (LuaState.style[0].ellipseMode == 2) {
+	    } else if (jsState.style[0].ellipseMode == 2) {
 		x -= r/2;
 		y -= r/2;
-	    } else if (LuaState.style[0].ellipseMode == 3) {
+	    } else if (jsState.style[0].ellipseMode == 3) {
 		x -= r/2;
 		y -= r/2;
 		r *= 2;
 	    }
 	    var p = self.applyTransformation(x,y);
-	    var d = LuaState.transformation[0].determinant();
+	    var d = jsState.transformation[0].determinant();
 	    d = Math.sqrt(d) * r;
 	    ctx.save();
 	    ctx.beginPath();
 	    ctx.setTransform(d,0,0,d,p.x,p.y);
 	    ctx.arc(0,0,1,0, 2 * Math.PI,false);
 	    ctx.restore();
-	    if (LuaState.style[0].fill) {
+	    if (jsState.style[0].fill) {
 		ctx.fill();
 	    }
-	    if (LuaState.style[0].stroke) {
+	    if (jsState.style[0].stroke) {
 		ctx.stroke();
 	    }
 	},
-	ellipseMode: function() {
-	    var m = this;
-	    if (m !== window) {
-		LuaState.style[0].ellipseMode = m;
+	ellipseMode: function(m) {
+	    if (typeof m !== 'undefined') {
+		jsState.style[0].ellipseMode = m;
 	    } else {
-		return LuaState.style[0].ellipseMode;
+		return jsState.style[0].ellipseMode;
 	    }
 	},
 	pushStyle: function() {
 	    var s = {};
-	    Object.keys(LuaState.style[0]).forEach(function(v) {
-		s[v] = LuaState.style[0][v];
+	    Object.keys(jsState.style[0]).forEach(function(v) {
+		s[v] = jsState.style[0][v];
 	    })
-	    LuaState.style.unshift(s);
+	    jsState.style.unshift(s);
 	},
 	popStyle: function() {
-	    LuaState.style.shift();
-	    self.applyStyle(LuaState.style[0]);
+	    jsState.style.shift();
+	    self.applyStyle(jsState.style[0]);
 	},
 	resetStyle: function() {
-	    Object.keys(LuaState.defaultStyle).forEach(function(v) {
-		LuaState.style[0][v] = LuaState.defaultStyle[v];
+	    Object.keys(jsState.defaultStyle).forEach(function(v) {
+		jsState.style[0][v] = jsState.defaultStyle[v];
 	    })
-	    self.applyStyle(LuaState.style[0]);
+	    self.applyStyle(jsState.style[0]);
 	},
 	pushTransformation: function() {
-	    LuaState.transformation.unshift(new Transformation(LuaState.transformation[0]));
+	    jsState.transformation.unshift(new Transformation(jsState.transformation[0]));
 	},
 	popTransformation: function() {
-	    LuaState.transformation.shift();
+	    jsState.transformation.shift();
 	},
 	resetTransformation: function() {
-	    LuaState.transformation[0] = new Transformation();
+	    jsState.transformation[0] = new Transformation();
 	},
-	translate: function(y) {
-	    var x = this;
+	translate: function(x,y) {
 	    if (x instanceof Vec2) {
 		y = x.y;
 		x = x.x;
 	    }
-	    LuaState.transformation[0] = LuaState.transformation[0].translate(x,y);
+	    jsState.transformation[0] = jsState.transformation[0].translate(x,y);
 	},
-	scale: function(b) {
-	    var a = this;
+	scale: function(a,b) {
 	    if (a instanceof Vec2) {
 		b = a.y;
 		a = a.x;
 	    }
-	    LuaState.transformation[0] = LuaState.transformation[0].scale(a,b);
+	    jsState.transformation[0] = jsState.transformation[0].scale(a,b);
 	},
-	xsheer: function() {
-	    var a = this;
-	    LuaState.transformation[0] = LuaState.transformation[0].xsheer(a);
+	xsheer: function(a) {
+	    jsState.transformation[0] = jsState.transformation[0].xsheer(a);
 	},
-	ysheer: function() {
-	    var a = this;
-	    LuaState.transformation[0] = LuaState.transformation[0].ysheer(a);
+	ysheer: function(a) {
+	    jsState.transformation[0] = jsState.transformation[0].ysheer(a);
 	},
-	rotate: function(x,y) {
-	    var ang = this;
-	    LuaState.transformation[0] = LuaState.transformation[0].rotate(ang,x,y);
+	rotate: function(ang,x,y) {
+	    jsState.transformation[0] = jsState.transformation[0].rotate(ang,x,y);
 	},
 	applyTransformation: function() {
-	    LuaState.transformation[0] = LuaState.transformation[0].applyTransformation(this);
+	    jsState.transformation[0] = jsState.transformation[0].applyTransformation(this);
 	},
 	composeTransformation: function() {
-	    LuaState.transformation[0] = LuaState.transformation[0].composeTransformation(this);
+	    jsState.transformation[0] = jsState.transformation[0].composeTransformation(this);
 	},
-	modelTransformation: function() {
-	    if (this !== window) {
-		LuaState.transformation[0] = new Transformation(this);
+	modelTransformation: function(m) {
+	    if (typeof m !== 'undefined') {
+		jsState.transformation[0] = new Transformation(m);
 	    } else {
-		return LuaState.transformation[0];
+		return jsState.transformation[0];
 	    }
 	},
 	clearState: function() {
-	    LuaState = self.getLuaState();
+	    jsState = self.getState();
 	},
-	colour: function(g,b,a) {
-	    var r = this;
+	colour: function(r,g,b,a) {
 	    return new Colour(r,g,b,a);
 	},
-	color: function(g,b,a) {
-	    var r = this;
+	color: function(r,g,b,a) {
 	    return new Colour(r,g,b,a);
 	},
-	transformation: function(b,c,d,e,f) {
-	    var a = this;
+	transformation: function(a,b,c,d,e,f) {
 	    return new Transformation(a,b,c,d,e,f);
 	},
-	vec2: function(y) {
-	    var x = this;
+	vec2: function(x,y) {
 	    return new Vec2(x,y);
 	},
-	coordinate: function(y) { // depreciated, not good notation
-	    var x = this;
+	point: function(x,y) {
 	    return new Vec2(x,y);
 	},
-	point: function(y) {
-	    var x = this;
-	    return new Vec2(x,y);
-	},
-	path: function(b) {
-	    var a = this;
+	path: function(a,b) {
 	    return new Path(a,b);
 	},
-	log: function() {
-	    console.log(this.toString());
+	log: function(s) {
+	    console.log(s.toString());
 	},
-	image: function(h) {
-	    var w = this;
+	image: function(w,h) {
 	    if (w instanceof Vec2) {
 		h = w.y;
 		w = w.x;
@@ -1466,9 +1383,8 @@ How should the angles interact with the transformation?
 	    c.prop('height',h);
 	    return c[0].getContext('2d');
 	},
-	setContext: function() {
-	    var c = this;
-	    if (c !== window) {
+	setContext: function(c) {
+	    if (typeof c !== 'undefined') {
 		ctx = c;
 	    } else {
 		ctx = gctx;
@@ -1482,8 +1398,7 @@ How should the angles interact with the transformation?
 	    ctx.imageSmoothingEnabled = false;
 	    $(ctx.canvas).addClass('pixelated');
 	},
-	sprite: function(x,y,w,h) {
-	    var img = this;
+	sprite: function(img,x,y,w,h) {
 	    if (img.canvas)
 		img = img.canvas;
 	    if (x instanceof Vec2) {
@@ -1516,8 +1431,7 @@ How should the angles interact with the transformation?
 	    ctx.drawImage(img,0,0,w,h);
 	    ctx.restore();
 	},
-	saveImage: function(s) {
-	    var img=this;
+	saveImage: function(img,s) {
 	    if (typeof(s) === 'undefined')
 		s = $('#title').text() + '-' + imgNum++;
 	    img.canvas.toBlob(function(b) {
@@ -1533,11 +1447,10 @@ How should the angles interact with the transformation?
 	    });
 	},
 	parameter: {
-	    text: function(n,i,f) {
-		var title = this;
+	    text: function(title,n,i,f) {
 		if (typeof(i) === "undefined")
 		    i = '';
-		LuaG.set(n,i);
+		jsG.set(n,i);
 		var tname = $('<span>');
 		tname.text(title + ':');
 		tname.addClass('parameter');
@@ -1547,23 +1460,23 @@ How should the angles interact with the transformation?
 		tfield.addClass('text');
 		tfield.attr('type','text');
 		tfield.val(i);
-		LuaState.parameters.push(
+		jsState.parameters.push(
 		    function() {
 			if (! tfield.is(":focus")) {
-			    tfield.val(LuaG.get(n));
+			    tfield.val(jsG.get(n));
 			};
 		    }
 		);
 		var cfn;
 		if (typeof(f) === "function") {
 		    cfn = function(e) {
-			LuaG.set(n,$(e.target).val());
+			jsG.set(n,$(e.target).val());
 			f($(e.target).val());
 			return false;
 		    }
 		} else {
 		    cfn = function(e) {
-			LuaG.set(n,$(e.target).val());
+			jsG.set(n,$(e.target).val());
 			return false;
 		    }
 		}
@@ -1574,21 +1487,20 @@ How should the angles interact with the transformation?
 		pdiv.append(tfield);
 		params.append(pdiv);
 	    },
-	    number: function(n,a,b,i,v,f) {
-		var title = this;
-		LuaG.set(n,i);
+	    number: function(title,n,a,b,i,v,f) {
+		jsG.set(n,i);
 		var pdiv = $('<div>');
 		pdiv.addClass('parameter');
 		var slider = $('<div>');
 		var tval = $('<span>');
 		var sfn,cfn;
 		cfn = function(e,u) {
-		    LuaG.set(n,u.value);
+		    jsG.set(n,u.value);
 		    tval.text(u.value);
 		}
 		if (typeof(f) === "function") {
 		    sfn = function(e,u) {
-			LuaG.set(n,u.value);
+			jsG.set(n,u.value);
 			tval.text(u.value);
 			f(u.value);
 		    }
@@ -1601,10 +1513,10 @@ How should the angles interact with the transformation?
 		    value: i,
 		    step: v
 		});
-		LuaState.parameters.push(
+		jsState.parameters.push(
 		    function() {
-			slider.slider("value",LuaG.get(n));
-			tval.text(LuaG.get(n));
+			slider.slider("value",jsG.get(n));
+			tval.text(jsG.get(n));
 		    }
 		);
 		var tname = $('<span>');
@@ -1619,9 +1531,8 @@ How should the angles interact with the transformation?
 		pdiv.append(slider);
 		params.append(pdiv);
 	    },
-	    select: function(n,o,i,f) {
-		var title = this;
-		LuaG.set(n,i);
+	    select: function(title,n,o,i,f) {
+		jsG.set(n,i);
 		var pdiv = $('<div>');
 		pdiv.addClass('parameter');
 		var tname = $('<span>');
@@ -1641,21 +1552,21 @@ How should the angles interact with the transformation?
 		    }
 		    sel.append(op);
 		}
-		LuaState.parameters.push(
+		jsState.parameters.push(
 		    function() {
-			sel.val(LuaG.get(n));
+			sel.val(jsG.get(n));
 		    }
 		);
 		var cfn;
 		if (typeof(f) === "function") {
 		    cfn = function(e) {
-			LuaG.set(n,$(e.target).val());
+			jsG.set(n,$(e.target).val());
 			f($(e.target).val());
 			return false;
 		    }
 		} else {
 		    cfn = function(e) {
-			LuaG.set(n,$(e.target).val());
+			jsG.set(n,$(e.target).val());
 			return false;
 		    }
 		}
@@ -1664,8 +1575,7 @@ How should the angles interact with the transformation?
 		pdiv.append(sel);
 		params.append(pdiv);
 	    },
-	    watch: function() {
-		var t = this;
+	    watch: function(t) {
 		var tname = $('<span>');
 		tname.text(t + ':');
 		tname.addClass('parameter');
@@ -1679,16 +1589,14 @@ How should the angles interact with the transformation?
 		pdiv.append(tfield);
 		params.append(pdiv);
 		return function() {
-		    tfield.text(this);
+		    tfield.text(t);
 		}
 	    },
-	    watchfn: function() {
-		var fn = this;
-		LuaState.watches.push(fn);
+	    watchfn: function(fn) {
+		jsState.watches.push(fn);
 	    },
-	    colour: function(c,ic,f) {
-		var title = this;
-		LuaG.set(c,ic);
+	    colour: function(title,c,ic,f) {
+		jsG.set(c,ic);
 		var tname = $('<span>');
 		tname.text(title + ':');
 		tname.addClass('parameter');
@@ -1698,11 +1606,11 @@ How should the angles interact with the transformation?
 		tfield.addClass('colour');
 		tfield.attr('type','color');
 		tfield.val(ic.toHex());
-		LuaState.parameters.push(
+		jsState.parameters.push(
 		    function() {
 			console.log(tfield.is(":focus"));
 			if (! tfield.is(":focus")) {
-			    tfield.val(LuaG.get(c).toHex());
+			    tfield.val(jsG.get(c).toHex());
 			}
 		    }
 		);
@@ -1710,13 +1618,13 @@ How should the angles interact with the transformation?
 		var cfn;
 		if (typeof(f) === "function") {
 		    cfn = function(e) {
-			LuaG.set(c,new Colour($(e.target).val()));
+			jsG.set(c,new Colour($(e.target).val()));
 	 		f(new Colour($(e.target).val()));
 			return false;
 		    }
 		} else {
 		    cfn = function(e) {
-			LuaG.set(c,new Colour($(e.target).val()));
+			jsG.set(c,new Colour($(e.target).val()));
 			return false;
 		    }
 		}
@@ -1730,8 +1638,7 @@ How should the angles interact with the transformation?
 	    clear: function() {
 		params.empty();
 	    },
-	    action: function(f) {
-		var name = this;
+	    action: function(name,f) {
 		var tfield = $('<input>');
 		tfield.addClass('parameter');
 		tfield.addClass('action');
@@ -1743,11 +1650,10 @@ How should the angles interact with the transformation?
 		pdiv.append(tfield);
 		params.append(pdiv);
 	    },
-	    bool: function(n,i,f) {
-		var title = this;
+	    bool: function(title,n,i,f) {
 		if (typeof(i) === "undefined")
 		    i = true;
-		LuaG.set(n,i);
+		jsG.set(n,i);
 		var tname = $('<span>');
 		tname.text(title + ':');
 		tname.addClass('parameter');
@@ -1759,9 +1665,9 @@ How should the angles interact with the transformation?
 		tfield.attr('type','checkbox');
 		tfield.attr('checked',i);
 		tfield.uniqueId();
-		LuaState.parameters.push(
+		jsState.parameters.push(
 		    function() {
-			tfield.prop("checked",LuaG.get(n));
+			tfield.prop("checked",jsG.get(n));
 		    }
 		);
 
@@ -1777,13 +1683,13 @@ How should the angles interact with the transformation?
 		var cfn;
 		if (typeof(f) === "function") {
 		    cfn = function(e) {
-			LuaG.set(n,$(e.target).is(':checked'));
+			jsG.set(n,$(e.target).is(':checked'));
 			f($(e.target).is(':checked'));
 			return false;
 		    }
 		} else {
 		    cfn = function(e) {
-			LuaG.set(n,$(e.target).is(':checked'));
+			jsG.set(n,$(e.target).is(':checked'));
 			return false;
 		    }
 		}
@@ -1808,7 +1714,7 @@ How should the angles interact with the transformation?
 
 
     /*
-      Path is a subobject of LuaCanvas so that it has access to the
+      Path is a subobject of jsCanvas so that it has access to the
       current transformation
     */
 
@@ -1859,7 +1765,7 @@ How should the angles interact with the transformation?
 		    dy = dx.y
 		    dx = dx.x
 		}
-		if (LuaState.style[0].bezierMode == 1) {
+		if (jsState.style[0].bezierMode == 1) {
 		    cy += dy;
 		    cx += dx;
 		    by += self.point.y;
@@ -1882,7 +1788,7 @@ How should the angles interact with the transformation?
 		    y = x.y;
 		    x = x.x;
 		}
-		if (LuaState.style[0].arcMode == 1)
+		if (jsState.style[0].arcMode == 1)
 		    ea += sa;
 		sa *= -Math.PI/180;
 		ea *= -Math.PI/180;
@@ -1906,13 +1812,13 @@ How should the angles interact with the transformation?
 		    h = w.y;
 		    w = w.x;
 		}
-		if (LuaState.style[0].rectMode == 1) {
+		if (jsState.style[0].rectMode == 1) {
 		    w -=x;
 		    h -=y;
-		} else if (LuaState.style[0].rectMode == 2) {
+		} else if (jsState.style[0].rectMode == 2) {
 		    x -= w/2;
 		    y -= h/2;
-		} else if (LuaState.style[0].rectMode == 3) {
+		} else if (jsState.style[0].rectMode == 3) {
 		    x -= w/2;
 		    y -= h/2;
 		    w *= 2;
@@ -1961,7 +1867,7 @@ How should the angles interact with the transformation?
 			b = false;
 		    m = opts.get("transformation");
 		    if (typeof m === "undefined") {
-			m = LuaState.transformation[0];
+			m = jsState.transformation[0];
 		    } else {
 			b = true;
 		    }
@@ -2085,12 +1991,14 @@ Available objects:
 Colour
 Transformation
 Vec2
-Path - subobject of LuaCanvas
+Path - subobject of jsCanvas
 */
 
-var svg,x11
+var svg,x11;
 
 function Colour(r,g,b,a) {
+    var self = this;
+    
     if (r instanceof String || typeof(r) === "string") {
 	if (r.substr(0,1) == '#') {
 	    if (r.length == 7) {
@@ -2151,8 +2059,12 @@ function Colour(r,g,b,a) {
     }
 
     this.toCSS = function() {
-	var al = a/255;
-	return 'rgba(' + this.r + ',' + this.g + ',' + this.b + ',' + al + ')';
+	var r,g,b,a;
+	r = Math.floor(self.r);
+	g = Math.floor(self.g);
+	b = Math.floor(self.b);
+	a = self.a/255;
+	return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
     }
 
     this.toHex = function() {
@@ -2166,10 +2078,10 @@ function Colour(r,g,b,a) {
     this.mix = function(c,t) {
 	var r,g,b,a,s;
 	s = 1 - t;
-	r = t*c.r + s*this.r;
-	g = t*c.g + s*this.g;
-	b = t*c.b + s*this.b;
-	a = t*c.a + s*this.a;
+	r = t*c.r + s*self.r;
+	g = t*c.g + s*self.g;
+	b = t*c.b + s*self.b;
+	a = t*c.a + s*self.a;
 	return new Colour(r,g,b,a);
     }
 
@@ -2544,6 +2456,7 @@ For when a JS function is expecting a Lua table but none came from Lua
 
 function Table() {
     var prop = {};
+    var setter;
 
     this.get = function(s) {
 	return prop[s];
@@ -2551,6 +2464,33 @@ function Table() {
 
     this.set = function(s,v) {
 	prop[s] = v;
+	if (typeof setter !== 'undefined') {
+	    setter(s,v);
+	}
+    }
+
+    this.setAll = function(f) {
+	Object.keys(prop).forEach(function(key,index) {
+	    f(key,prop[key]);
+	});
+	setter = f;
+    }
+
+    this.getProperties = function() {
+	var p = [];
+	Object.keys(prop).forEach(function(k,i) {
+	    p.push(k);
+	});
+	return 'var ' + p.join(', ') + ';';
+    }
+    
+    this.makeSetter = function() {
+	var s = '(function(a,b) {';
+	Object.keys(prop).forEach(function(key,index) {
+	    s += ' if (a == "' + key + '" ) { ' + key + ' = b; return; } ';
+	})
+	s += '})';
+	return s;
     }
 }
 
@@ -2559,28 +2499,36 @@ function Table() {
   Utilities
 */
 
-function Animation(callback, delay) {
-    var timerId, start, remaining = delay;
+function Animation(callback) {
+    var timerId, startTime = 0, previousTime = 0, pauseTime = 0;
     var self = this;
+    var wrapper;
+    wrapper = function(t) {
+	var et = t - startTime;
+	var dt = et - previousTime;
+	callback(et,dt);
+	previousTime = et;
+	timerId = window.requestAnimationFrame(wrapper);
+    };
     
     this.isPaused = false;
     
     this.pause = function() {
         window.cancelAnimationFrame(timerId);
-        remaining -= new Date() - start;
+	pauseTime =  window.performance.now();
 	self.isPaused = true;
     };
 
     this.resume = function() {
-        start = new Date();
+        startTime += window.performance.now() - pauseTime;
         window.cancelAnimationFrame(timerId);
-        timerId = window.requestAnimationFrame(callback);
+        timerId = window.requestAnimationFrame(wrapper);
 	self.isPaused = false;
     };
 
     this.stop = function() {
 	window.cancelAnimationFrame(timerId);
-    }
+    };
     
     this.resume();
 }
