@@ -471,7 +471,7 @@ function jsCanvas(c,o,p) {
 	jsG = new Table;
 	self.initialiseJS();
 	var jcode = self.prejs();
-	var offset = jcode.split('\n').length - 1;
+	var offset = jcode.split('\n').length - 1 + 4;
 	jcode += '\n' + code + '\n' + self.postjs();
 	if (cl) {
 	    output.text('');
@@ -483,17 +483,50 @@ function jsCanvas(c,o,p) {
 	try {
 	    eval(jcode);
 	} catch (e) {
-	    if (e instanceof SyntaxError) {
-		self.doError(e.message);
-	    } else {
-		throw( e );
-	    }
+	    self.doError(e,jcode,offset);
 	};
     }
 
-    this.doError = function(e) {
-	console.log('Error found:');
-	console.log(e);
+    this.doError = function(e,c,o) {
+        var emsg;
+
+        if (e.message.toString().search(/:(\d+):/) != -1) {
+            var eline = e.message.toString().match(/:(\d+):/)[1];
+            var lines = c.split('\n');
+            var tab,m,n = 0;
+            for (var i = 0; i< eline; i++) {
+                if (lines[i].search(/^\/\/##/) != -1) {
+                    m = lines[i].match(/^\/\/## (.*)/);
+                    tab = m[1];
+                    n = i;
+                }
+            }
+            emsg = e.message.toString().replace(/.*:(\d+):\s*/, function(a,b) { return 'Tab: ' + tab + '\nLine: ' + (parseInt(b,10) - n - 2) + '\n' });
+        } else {
+            emsg = e.message.toString();
+        }
+        emsg = e.message.toString();
+
+	var out = $('#output');
+	if (!out.is(':empty')) {
+	    out.append($('<br>'));
+	}
+	var errdiv = $('<div>');
+	errdiv.addClass('error');
+	var errtype = $('<span>');
+	errtype.text(e.name + ":");
+	errdiv.append(errtype);
+	var errmsg = $('<span>');
+	errmsg.text(emsg);
+	errdiv.append(errmsg);
+	if (e.lineNumber) {
+	    var errln = $('<span>');
+	    errln.text("at line " + (e.lineNumber - o));
+	    errdiv.append(errln);
+	}
+	out.append(errdiv);
+	var outdiv = $('#outdiv');
+	outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
     }
 
     
@@ -2451,7 +2484,7 @@ Vec2.prototype.toString = function() {
     }
 
 /*
-For when a JS function is expecting a Lua table but none came from Lua
+For inserting a load of variables into a JS block
 */
 
 function Table() {

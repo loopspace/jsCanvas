@@ -259,7 +259,7 @@ div.parameter {
     right: 0px; 
 }
 
-.lua_code {
+.js_code {
     display: none;
 }
 
@@ -277,4 +277,12 @@ div.parameter {
   image-rendering:crisp-edges;               /* CSS4 Proposed  */
   image-rendering:pixelated;                 /* CSS4 Proposed  */
   -ms-interpolation-mode:nearest-neighbor;   /* IE8+           */
+}
+
+.error {
+    color: red;
+}
+
+.error span {
+    display: block;
 }
