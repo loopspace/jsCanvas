@@ -489,23 +489,41 @@ function jsCanvas(c,o,p) {
 
     this.doError = function(e,c,o) {
         var emsg;
-
-        if (e.message.toString().search(/:(\d+):/) != -1) {
-            var eline = e.message.toString().match(/:(\d+):/)[1];
+	var elines = e.stack.split('\n');
+	var efn;
+	var eln;
+	if (elines[0].search(/@/) != -1) {
+	    // Firefox
+	    efn = elines[0].substring(0,elines[0].search(/@/));
+	    eln = elines[0].match(/:(\d+):\d+$/)[1];
+	} else if (elines[1].search(/^\s*at /) != -1) {
+	    // Chrome
+	    var matches = elines[1].match(/^\s*at (\w+) .*:(\d+):\d+\)$/);
+	    if (matches) {
+		eln = matches[2];
+		if (matches[1] != "eval") {
+		    efn = matches[1];
+		}
+	    }
+	}
+        if (eln) {
             var lines = c.split('\n');
             var tab,m,n = 0;
-            for (var i = 0; i< eline; i++) {
+            for (var i = 0; i< eln; i++) {
                 if (lines[i].search(/^\/\/##/) != -1) {
                     m = lines[i].match(/^\/\/## (.*)/);
                     tab = m[1];
-                    n = i;
+		    n = i;
                 }
             }
-            emsg = e.message.toString().replace(/.*:(\d+):\s*/, function(a,b) { return 'Tab: ' + tab + '\nLine: ' + (parseInt(b,10) - n - 2) + '\n' });
+	    emsg = e.message;
+	    if (efn) {
+		emsg += "\nFunction: " + efn;
+	    }
+	    emsg += "\nLine: " + (eln - 4) + "\nTab: " + tab;
         } else {
             emsg = e.message.toString();
         }
-        emsg = e.message.toString();
 
 	var out = $('#output');
 	if (!out.is(':empty')) {
@@ -519,11 +537,6 @@ function jsCanvas(c,o,p) {
 	var errmsg = $('<span>');
 	errmsg.text(emsg);
 	errdiv.append(errmsg);
-	if (e.lineNumber) {
-	    var errln = $('<span>');
-	    errln.text("at line " + (e.lineNumber - o));
-	    errdiv.append(errln);
-	}
 	out.append(errdiv);
 	var outdiv = $('#outdiv');
 	outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
@@ -1175,23 +1188,23 @@ How should the angles interact with the transformation?
 	    var r = self.applyTransformationNoShift(0,-1).normalise();
 	    if (jsState.style[0].textMode == 1) {
 		var tm = ctx.measureText(s);
-		p = p.__sub(q.__mul(tm.width));
+		p = p.subtract(q.multiply(tm.width));
 	    } else if (jsState.style[0].textMode == 2) {
 		var tm = ctx.measureText(s);
-		p = p.__sub(q.__mul(tm.width/2));
+		p = p.subtract(q.multiply(tm.width/2));
 	    }
 	    if (jsState.style[0].textValign == 0) {
 		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
 		var fm = getTextHeight(f,s);
-		p = p.__sub(r.__mul(fm.descent));
+		p = p.subtract(r.multiply(fm.descent));
 	    } else if (jsState.style[0].textValign == 2) {
 		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
 		var fm = getTextHeight(f,s);
-		p = p.__add(r.__mul(fm.height/2-fm.descent));
+		p = p.add(r.multiply(fm.height/2-fm.descent));
 	    } else if (jsState.style[0].textValign == 3) {
 		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
 		var fm = getTextHeight(f,s);
-		p = p.__add(r.__mul(fm.ascent));
+		p = p.add(r.multiply(fm.ascent));
 	    }
 	    ctx.save();
 	    ctx.beginPath();
@@ -1641,7 +1654,6 @@ How should the angles interact with the transformation?
 		tfield.val(ic.toHex());
 		jsState.parameters.push(
 		    function() {
-			console.log(tfield.is(":focus"));
 			if (! tfield.is(":focus")) {
 			    tfield.val(jsG.get(c).toHex());
 			}
@@ -2291,7 +2303,7 @@ Transformation.prototype.inverse = function() {
     return new Transformation(nm);
 }
 
-Transformation.prototype.__mul = function(a,b) {
+Transformation.prototype.multiply = function(a,b) {
     if (typeof(b) === 'undefined') {
 	b = a;
 	a = this;
@@ -2307,7 +2319,7 @@ Transformation.prototype.__mul = function(a,b) {
     }
 }
 
-Transformation.prototype.__div = function(z) {
+Transformation.prototype.divide = function(z) {
     if (z instanceof Number || typeof(z) === 'number') {
 	var nm = new Transformation(this);
 	nm[1] *= z;
@@ -2320,11 +2332,11 @@ Transformation.prototype.__div = function(z) {
     }
 }
 
-Transformation.prototype.__unm = function() {
+Transformation.prototype.unminus = function() {
     return this.postscale(-1);
 }
 
-Transformation.prototype.__eq = function(m) {
+Transformation.prototype.equals = function(m) {
     return this[1] == nm[1]
 	&& this[2] == nm[2]
 	&& this[3] == nm[3]
@@ -2368,7 +2380,7 @@ function Vec2(a,b) {
   treat the result as if a Vec2 was a complex number.
 */
 
-Vec2.prototype.__add = function(a,b) {
+Vec2.prototype.add = function(a,b) {
     if (typeof(b) === 'undefined') {
 	b = a;
 	a = this;
@@ -2382,7 +2394,7 @@ Vec2.prototype.__add = function(a,b) {
     }
 }
     
-Vec2.prototype.__sub = function(a,b) {
+Vec2.prototype.subtract = function(a,b) {
     if (typeof(b) === 'undefined') {
 	b = a;
 	a = this;
@@ -2396,7 +2408,7 @@ Vec2.prototype.__sub = function(a,b) {
     }
 }
 
-Vec2.prototype.__mul = function(a,b) {
+Vec2.prototype.multiply = function(a,b) {
     if (typeof(b) === 'undefined') {
 	b = a;
 	a = this;
@@ -2410,7 +2422,7 @@ Vec2.prototype.__mul = function(a,b) {
     }
 }
 
-Vec2.prototype.__div = function(a,b) {
+Vec2.prototype.divide = function(a,b) {
     if (typeof(b) === 'undefined') {
 	b = a;
 	a = this;
@@ -2426,11 +2438,11 @@ Vec2.prototype.__div = function(a,b) {
     }
 }
 
-Vec2.prototype.__unm = function() {
+Vec2.prototype.unminus = function() {
     return new Vec2(-this.x,-this.y);
 }
 
-Vec2.prototype.__eq = function(v) {
+Vec2.prototype.equals = function(v) {
 	return (this.x == v.x) && (this.y == v.y);
     }
     
