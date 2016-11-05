@@ -5,11 +5,12 @@
 + js/addon/edit/closebrackets.js
 + js/jquery-1.11.3.min.js
 + js/jquery.ui.touch-punch.min.js
-+ js/lua.js
-+ js/lua.vm.js
 + js/codemirror.js
 + js/main.js
 + js/jquery-ui.min.js
++ js/mode/
++ js/mode/javascript/
++ js/mode/javascript/javascript.js
 + index.html
 + about.html
 + help.html
@@ -23,5 +24,5 @@
 + css/theme/
 + css/theme/*.css
 + projects/
-+ projects/*.lua
++ projects/*.js
 - *
