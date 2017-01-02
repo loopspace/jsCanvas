@@ -23,28 +23,17 @@ then evaluated and the results displayed.  The display page contains a
 
 ## Usage
 
-Usage should be fairly obvious: write `javascript` code in the text box and click `Execute` to run it.  You can `Save` and `Load` projects to files on your local machine.
-
-You can have multiple tabs to organise your code (though they all get
-slammed together when executed so there is no scoping).  Click the `+` button to add a tab and edit its title to rename it (the program doesn't current disallow using the same name for two tabs but you'll lose the code if you do that).  You can reorder tabs by dragging on their handles (the funny symbol before the tab name), dragging a tab past the `+` button should remove it entirely.  Clicking on the handle selects that tab for editing.
-
-## Running the Code
-
-Once the code has been read, we do any initialisation and then enter a _draw loop_.  If you have defined a function called `setup`, that is now run.  After that, a function called `draw` is run on a loop.  This makes animation possible.
-
-The draw loop can be paused or restarted using the obvious buttons at the bottom of the page.
-
-It is also possible to detect mouse clicks and key presses on the
-canvas.  Any clicks are passed to a function called `touched` which is
-run after each `draw`, once for each click that's happened in the last
-cycle.  Any key presses are passed to a function called `key`.  To use
-these, define these functions in your code.
+This branch contains the code needed when exporting a project.
+The **Export** button on the code editor provides a `javascript` file
+for downloading called `project.js`.  To create a website for that
+project, download this branch of the `jsCanvas` project and place the
+`project.js` file in the `js` directory.  Then upload the files to a
+suitable place.
 
 ## Dependencies
 
-This project uses the following `javascript` libraries:
+An exported project uses the following `javascript` libraries:
 
-1. [CodeMirror](https://codemirror.net/) for the code editor part.
 3. [jQuery](https://jquery.com/) to make life a little easier inside the code.
 4. [jQuery-ui](https://jqueryui.com/) to make life a little easier outside the code.
 
