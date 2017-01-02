@@ -143,6 +143,9 @@ function setEditorSize() {
     $('.CodeMirror').height(h);
 }
 
+$(window).on('resize',setEditorSize);
+
+
 /*
 Set the canvas to be as big as possible on the screen.
 */

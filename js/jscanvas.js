@@ -18,6 +18,7 @@ function jsCanvas(c,o,p) {
     var sTime; // time at which the script started
     var inTouch; // used for handling touches
     var code; // saves the current code in case we restart
+    var codetxt; // saves the text version of the current code
     var imgNum = 0; // generated images
     var blendmodes = { // all the various blend modes
 	sourceOver: 'source-over',
@@ -52,17 +53,17 @@ function jsCanvas(c,o,p) {
       This does the actual execution
      */
     this.executeJS = function(c,cl) {
-	var jcode, offset;
+	var offset;
 	jsG = new Table;
 	self.initialiseJS();
 	if (typeof c == 'string') {
-	    jcode = self.prejs(true);
-	    offset = jcode.split('\n').length - 1 + 4; // not currently used
-	    jcode += '\n' + c + '\n' + self.postjs(true);
-	    code = function() { eval(jcode) };
+	    codetxt = self.prejs(true);
+	    offset = codetxt.split('\n').length - 1 + 4; // not currently used
+	    codetxt += '\n' + c + '\n' + self.postjs(true);
+	    code = function() { eval(codetxt) };
 	} else {
 	    code = c;
-	    jcode = c.toString();
+	    codetxt = c.toString();
 	    offset = 0;
 	}
 	if (cl) {
@@ -75,14 +76,14 @@ function jsCanvas(c,o,p) {
 	try {
 	    code(jsG);
 	} catch (e) {
-	    self.doError(e,jcode,offset);
+	    self.doError(e,codetxt,offset);
 	};
     }
 
     this.doError = function(e,c,o) {
 	self.stopJS();
 	if (!c) {
-	    c = code;
+	    c = codetxt;
 	}
         var emsg;
 	var elines = e.stack.split('\n');
@@ -116,7 +117,7 @@ function jsCanvas(c,o,p) {
 	    if (efn) {
 		emsg += "\nFunction: " + efn;
 	    }
-	    emsg += "\nLine: " + (eln - 4) + "\nTab: " + tab;
+	    emsg += "\nLine: " + (eln - 2 - n) + "\nTab: " + tab;
         } else {
             emsg = e.message.toString();
         }
@@ -383,7 +384,8 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	} else {
 	    str = 'Project = function (jsG) { '
 	}
-	str += jsG.getProperties()
+	str += 'var self; '
+	    + jsG.getProperties()
 	    + ' setter = eval(jsG.makeSetter()); jsG.setAll(setter); print(); clearOutput(); '
 	    + '(function() { '
 	    + 'stroke(255,255,255); '
