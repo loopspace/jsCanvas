@@ -5,78 +5,16 @@
     <title>js Canvas</title>
     <link href="css/main.css" rel="stylesheet">
     <link href="css/jquery-ui.min.css" rel="stylesheet">
-    <script src="js/codemirror.js"></script>
-    <script src="js/addon/edit/closebrackets.js"></script>
-    <script src="js/addon/edit/matchbrackets.js"></script>
-    <script src="js/mode/javascript/javascript.js"></script>
-    <link href="css/codemirror.css" rel="stylesheet">
     <script src="js/jquery-1.11.3.min.js"
 	    type="text/javascript"></script>
     <script src="js/jquery-ui.min.js" type="text/javascript"></script>
-    <script src="js/jquery.ui.touch-punch.min.js"></script>
-    <script src="js/main.js"></script>
-    <script src="js/jscanvas.js"></script>
+    <script src="js/jquery.ui.touch-punch.min.js" type="text/javascript"></script>
+    <script src="js/main.js" type="text/javascript"></script>
+    <script src="js/jscanvas.js" type="text/javascript"></script>
+    <script src="js/project.js" type="text/javascript"></script>
   </head>
   <body>
     <div id="container">
-      <div id="editor">
-	<div id="tabsdiv">
-	  <span id="title" contenteditable="true">Project</span>
-	  <ol id="tabs">
-	  </ol>
-	  <div id="themediv">
-	    <form id="cmtheme">Editor Theme:
-	      <select id="theme">
-		<option selected>default</option>
-		<option>3024-day</option>
-		<option>3024-night</option>
-		<option>abcdef</option>
-		<option>ambiance</option>
-		<option>base16-dark</option>
-		<option>base16-light</option>
-		<option>blackboard</option>
-		<option>cobalt</option>
-		<option>colorforth</option>
-		<option>dracula</option>
-		<option>eclipse</option>
-		<option>elegant</option>
-		<option>erlang-dark</option>
-		<option>icecoder</option>
-		<option>lesser-dark</option>
-		<option>liquibyte</option>
-		<option>material</option>
-		<option>mbo</option>
-		<option>mdn-like</option>
-		<option>midnight</option>
-		<option>monokai</option>
-		<option>neat</option>
-		<option>neo</option>
-		<option>night</option>
-		<option>paraiso-dark</option>
-		<option>paraiso-light</option>
-		<option>pastel-on-dark</option>
-		<option>rubyblue</option>
-		<option>seti</option>
-		<option>solarized dark</option>
-		<option>solarized light</option>
-		<option>the-matrix</option>
-		<option>tomorrow-night-bright</option>
-		<option>tomorrow-night-eighties</option>
-		<option>ttcn</option>
-		<option>twilight</option>
-		<option>vibrant-ink</option>
-		<option>xq-dark</option>
-		<option>xq-light</option>
-		<option>yeti</option>
-		<option>zenburn</option>
-	      </select>
-	    </form>
-	  </div>
-	</div>
-	<div id="codediv">
-	  <textarea id="code"></textarea>
-	</div>
-      </div>
       <div id="run">
 	<div id="panel">
 	  <div id="paramdiv">
@@ -90,38 +28,9 @@
 	  <canvas id="cvs" tabindex="1"></canvas>
 	</div>
       </div>
-      <div id="editButtons" class="buttons">
-	<a href="#" id="execute" class="link_button">Execute</a>
-	<a href="#" id="save" class="link_button">Save</a>
-	<form class="file_select">
-	  <div class="fileUpload link_button">
-	    <span>Load</span>
-	    <input type="file" class="upload" id="load">
-	  </div>
-	</form>
-	<a href="#" id="export" class="link_button">Export</a>
-	<a href="#" id="clear" class="link_button">Clear</a>
-	<a href="help.html" id="doc" target="_blank" class="link_button">Help</a>
-      </div>
       <div id="runButtons" class="buttons">
-	<a href="#" id="edit" class="link_button">Edit</a>
 	<a href="#" id="restart" class="link_button">Restart</a>
 	<a href="#" id="pause" class="link_button">Pause</a>
-      </div>
-    </div>
-    <div id="jscode" class="js_code">
-      <div id="js_template" class="js_code">
-function setup() {
-  print("hello world");
-}
-
-function draw() {
-  background(40,40,50);
-  fill(150,200,30);
-  stroke(200,30,150);
-  strokeWidth(10);
-  rect(20,20,100,100);
-}
       </div>
     </div>
   </body>

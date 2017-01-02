@@ -106,53 +106,6 @@ div.parameter {
     outline: none;
 }
 
-#tabsdiv {
-    padding: 0px;
-}
-
-#tabs {
-    display: inline;
-    list-style-type: none;
-    margin: 0px;
-    vertical-align: bottom;
-}
-
-.tabstyle {
-    border-radius: 5px 5px 0px 0px;
-    background-color: #aaa;
-    padding: 5px 5px 2px 5px;
-    display: inline;
-    margin-left: 2px;
-}
-
-.handle {
-    padding-right: 5px;
-}
-
-.nolink {
-    text-decoration: none;
-    color: black;
-}
-
-.control {
-    margin-left: 10px;
-    padding-left: 10px;
-    padding-right: 10px;
-}
-
-.current {
-    color: #fff;
-}
-
-#run {
-    display: none;
-}
-
-#codediv {
-    border-style: inset;
-    border-width: 2px;
-}
-
 .buttons {
     clear: both;
     padding-top: 14px;
@@ -172,35 +125,6 @@ div.parameter {
     color: #FFF;
     padding: 8px 12px;
     text-decoration: none;
-}
-
-.file_select {
-    display: inline;
-    position: relative;
-}
-
-.fileUpload {
-    position: relative;
-    overflow: hidden;
-    display: inline;
-    margin-right: .5ex;
-}
-
-.fileUpload input.upload {
-    position: absolute;
-    top: 0;
-    right: 0;
-    margin: 0;
-    padding: 0;
-    font-size: 20px;
-    cursor: pointer;
-    opacity: 0;
-    width: 100%;
-    filter: alpha(opacity=0);
-}
-
-#themediv {
-    float: right;
 }
 
 .watch_title {
