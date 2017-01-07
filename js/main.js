@@ -93,6 +93,9 @@ function init() {
 	}).done(function(data) {
 	    tabs.setCode(data);
 	    $('#title').text(project);
+	    if ("run" in qs){
+		runCode(jc,tabs);
+	    }
 	}).fail(function() { alert("Failed to get project " + project); });
     }
 }
@@ -190,7 +193,7 @@ Export the code with a suitable wrapper
 function exportCode(e,jc,tabs) {
     var code = tabs.getCode();
     var expt = jc.exportCode(code);
-    var title = 'Project';
+    var title = 'project';
     var blob = new Blob([expt], {'type':'text/plain'});
     if (typeof window.navigator.msSaveBlob === 'function') {
 	window.navigator.msSaveBlob(blob, title + '.js');
