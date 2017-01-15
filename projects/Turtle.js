@@ -29,8 +29,8 @@ function touched(t) {
 //## Turtle
 
 function Turtle() {
-  this.pos = vec2(0,0);
-  this.dir = vec2(0,1);
+  this.pos = new Vec2(0,0);
+  this.dir = new Vec2(0,1);
   this.width = 2;
   this.colour = new Colour("orange");
   this.canvas = image(WIDTH,HEIGHT);
@@ -167,7 +167,7 @@ function Turtle() {
       'init': function() {
         sd = self.dir;
         st = ElapsedTime;
-        a = a.subtract(vec2(1,0).angleBetween(self.dir));
+        a = a.subtract(new Vec2(1,0).angleBetween(self.dir));
         a = (a + 180)%360 - 180;
       },
       'draw': function() {
@@ -199,7 +199,7 @@ function Turtle() {
   
   this.toPosition = function() {
     var args = [].slice.call(arguments);
-    var p = vec2(args);
+    var p = new Vec2(args);
     var st,sp,d;
     self.actions.push({
       'init': function() { sp = self.pos; st = ElapsedTime; d = p.len(); },
@@ -250,14 +250,14 @@ function Protractor(r) {
   stroke("white");
   line(b,b,2*r+b,b);
   arc(r+b,b,r,0,180);
-  v = vec2(1,0);
-  p = vec2(b+r,b);
+  v = new Vec2(1,0);
+  p = new Vec2(b+r,b);
   for (var k = 1; k < 36; k++) {
     line(p.add(v.rotate(5*k).multiply(r-15+k%2*5)),p.add(v.rotate(5*k).multiply(r)));
   }
-  line(p,p.add(vec2(0,5)));
+  line(p,p.add(new Vec2(0,5)));
   setContext();
-  self.pos = vec2(r,0);
+  self.pos = new Vec2(r,0);
   self.ang = 0;
   self.radius = r;
   self.border = b;
@@ -272,7 +272,7 @@ function Protractor(r) {
   }
 
   this.touched = function(t) {
-    var p = vec2(t);
+    var p = new Vec2(t);
     if (t.state == BEGAN) {
       var q = p.subtract(self.pos).rotate(-self.ang);
       if (q.y > 0) {
@@ -280,7 +280,7 @@ function Protractor(r) {
           self.tp = p.subtract(self.pos);
           self.state = 1;
         } else if (q.len() < 100) {
-          self.tp = vec2(1,0).angleBetween(p.subtract(self.pos)) - self.ang;
+          self.tp = new Vec2(1,0).angleBetween(p.subtract(self.pos)) - self.ang;
           self.state = 2;
         } else {
           return false;
@@ -292,7 +292,7 @@ function Protractor(r) {
       if (self.state == 1) {
         self.pos = p.subtract(self.tp);
       } else if (self.state == 2) {
-        self.ang = vec2(1,0).angleBetween(p.subtract(self.pos)) - self.tp;
+        self.ang = new Vec2(1,0).angleBetween(p.subtract(self.pos)) - self.tp;
       } else {
         return false;
       }
@@ -332,7 +332,7 @@ function Ruler(l,w) {
   }
   setContext();
   
-  self.pos = vec2(WIDTH-l-b,b+w);
+  self.pos = new Vec2(WIDTH-l-b,b+w);
   self.ang = 0;
   self.width = w;
   self.length = l;
@@ -348,7 +348,7 @@ function Ruler(l,w) {
   }
   
   this.touched = function(t) {
-    var p = vec2(t);
+    var p = new Vec2(t);
     if (t.state == BEGAN) {
       var w = self.width, l = self.length;
       var q = p.subtract(self.pos).rotate(-self.ang);
@@ -359,11 +359,11 @@ function Ruler(l,w) {
         } else if (Math.abs(q.x - l/2) < l/2) {
           if (q.x > l/2) {
             self.state = 2;
-            self.tp = vec2(1,0).angleBetween(p.subtract(self.pos)) - self.ang;
+            self.tp = new Vec2(1,0).angleBetween(p.subtract(self.pos)) - self.ang;
           } else {
             self.state = 3;
-            self.op = self.pos.add(vec2(l,0).rotate(self.ang));
-            self.tp = vec2(1,0).angleBetween(p.subtract(self.op)) - self.ang + 180;
+            self.op = self.pos.add(new Vec2(l,0).rotate(self.ang));
+            self.tp = new Vec2(1,0).angleBetween(p.subtract(self.op)) - self.ang + 180;
           }
         } else {
           return false;
@@ -376,10 +376,10 @@ function Ruler(l,w) {
       if (self.state == 1) {
         self.pos = p.subtract(self.tp);
       } else if (self.state == 2) {
-        self.ang = vec2(1,0).angleBetween(p.subtract(self.pos)) - self.tp;
+        self.ang = new Vec2(1,0).angleBetween(p.subtract(self.pos)) - self.tp;
       } else if (self.state == 3) {
-        self.ang = vec2(1,0).angleBetween(p.subtract(self.op)) - self.tp + 180;
-        self.pos = self.op.subtract(vec2(l,0).rotate(self.ang));
+        self.ang = new Vec2(1,0).angleBetween(p.subtract(self.op)) - self.tp + 180;
+        self.pos = self.op.subtract(new Vec2(l,0).rotate(self.ang));
       } else {
         return false;
       }

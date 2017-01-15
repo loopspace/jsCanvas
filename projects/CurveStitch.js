@@ -18,7 +18,7 @@ function draw() {
   ellipse(0,0,radius);
   var p,q,a,r;
   a = 360/parameters.clock;
-  r = vec2(radius,0);
+  r = new Vec2(radius,0);
   for (var k=0; k < parameters.clock; k++) {
     p = r.rotate(90 - k*a);
     q = r.rotate(90 - (k*parameters.multiplier + parameters.offset)*a);

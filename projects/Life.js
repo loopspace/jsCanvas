@@ -7,7 +7,7 @@ function setup() {
   parameter.number("Size","size",10,100,1,10,restart);
   parameter.action("Restart",restart);
   parameter.action("Step",step);
-  parameter.bool("Run","run",false);
+  parameter.boolean("Run","run",false);
   restart();
 }
 

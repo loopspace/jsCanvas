@@ -42,10 +42,10 @@ function generate() {
     }
   }
   nl *= parameters.angleStep;
-  var ll = vec2(0,0), ur = vec2(0,0), p = vec2(0,0), a = 0;
-  lines = [vec2(0,0)];
+  var ll = new Vec2(0,0), ur = new Vec2(0,0), p = new Vec2(0,0), a = 0;
+  lines = [new Vec2(0,0)];
   for (var k = 0; k < nl; k++) {
-    p = p.add(vec2(pts[k],0).rotate(a));
+    p = p.add(new Vec2(pts[k],0).rotate(a));
     lines.push(p);
     a += da;
   }

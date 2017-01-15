@@ -8,12 +8,9 @@ function jsCanvas(c,o,p) {
     var output = o; // output pane
     var params = p; // parameters pane
     p.submit(function() {return false;}); // disable submission
-    var jsDraw; // the draw cycle timer
+    var jsDraw; // the draw cycle animation
     var jsState; // transformation and style and similar
     var jsGrExt; // our graphical extensions
-    var jsExt; // our non-graphical extensions
-    var threadResume; // thread in non-graphical mode
-    var threadYield; // thread in non-graphical mode
     var jsG; // a global table
     var sTime; // time at which the script started
     var inTouch; // used for handling touches
@@ -404,14 +401,6 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	return str;
     }
 
-    this.coresume = function(e) {
-	if (e.keyCode == 13) {
-	    $(this).off('keyup');
-	    $(this).prop('disabled',true);
-	    threadResume($(this).val());
-	}
-    }
-
     this.initCycle = function (draw,touched,key) {
 	jsDraw = new Animation(
 	    function(et,dt) {
@@ -498,43 +487,6 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	self.applyStyle(jsState.defaultStyle);
     }
 
-    jsExt = {
-	clearOutput: function() {
-	    output.text('');
-	},
-	__prompt: function() {
-	    var txt = (this === window) ? "" : this;
-	    var tbox = $('<input>');
-	    tbox.attr('type','text');
-	    tbox.addClass('prompt');
-	    if (!output.is(':empty')) {
-		output.append( $('<br>'));
-	    }
-	    if (txt) {
-		output.append(document.createTextNode(txt));
-	    }
-	    output.append(tbox);
-	    tbox.keyup(self.coresume);
-	},
-	print: function(x) {
-	    var out = $('#output');
-	    if (!out.is(':empty')) {
-		out.append($('<br>'));
-	    }
-/*	var txt = $('#output').text();
-	txt = (txt ? txt + '\n' : '') + x;
-	$('#output').text(txt);
-*/
-	    out.append(document.createTextNode(x));
-	    var outdiv = $('#outdiv');
-	    outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
-	},
-	initThread: function() {
-	    threadResume = this;
-	    threadResume();
-	}
-    }
-    
     jsGrExt = {
 	initCycle: function(d,t,k) {
 	    self.initCycle(d,t,k);
@@ -1089,6 +1041,7 @@ How should the angles interact with the transformation?
 	clearState: function() {
 	    jsState = self.getState();
 	},
+	/* These aren't good javascript OO
 	colour: function(r,g,b,a) {
 	    return new Colour(r,g,b,a);
 	},
@@ -1107,6 +1060,7 @@ How should the angles interact with the transformation?
 	path: function(a,b) {
 	    return new Path(a,b);
 	},
+	*/
 	log: function(s) {
 	    console.log(s.toString());
 	},
@@ -1395,7 +1349,7 @@ How should the angles interact with the transformation?
 		pdiv.append(tfield);
 		params.append(pdiv);
 	    },
-	    bool: function(title,n,i,f) {
+	    boolean: function(title,n,i,f) {
 		if (typeof(i) === "undefined")
 		    i = true;
 		jsGrExt.parameters[n] = i;
@@ -1845,6 +1799,13 @@ function Colour(r,g,b,a) {
     return this;
 }
 
+// For Americans ...
+Color = Colour
+
+/*
+Transformation object for transformations
+*/
+
 function Transformation(a,b,c,d,e,f) {
     if (typeof(a) !== 'undefined') {
 	if (a instanceof Vec2) {
@@ -1894,6 +1855,10 @@ function Transformation(a,b,c,d,e,f) {
     }
     return this;
 }
+
+// For those that know about matrices ...
+
+Matrix = Transformation
 
 Transformation.prototype.applyTransformation = function(x,y) {
     if (x instanceof Vec2 ) {
@@ -2050,6 +2015,10 @@ Transformation.prototype.toString = function() {
     return '[' + this[1] + ',' + this[3] + ',' + this[5] + ']\n[' + this[2] + ',' + this[4] + ',' + this[6] + ']';
 }
 
+
+/*
+Vec2 object for vectors and points
+*/
 function Vec2(a,b) {
     if (typeof(a) !== 'undefined') {
 	if (typeof(a) === 'number' || a instanceof Number) {
@@ -2075,6 +2044,9 @@ function Vec2(a,b) {
 
     return this;
 }
+
+// Not everyone knows about vectors
+Point = Vec2
 
 /*
   Add, subtract, and divide can all take numbers on either side and
@@ -2190,6 +2162,10 @@ Vec2.prototype.rotate90 = function() {
 
 Vec2.prototype.angleBetween = function(v) {
     return (Math.atan2(v.y,v.x) - Math.atan2(this.y,this.x))*180/Math.PI;
+}
+
+Vec2.prototype.angle = function(v) {
+    return Math.atan2(this.y,this.x)*180/Math.PI;
 }
 
 Vec2.prototype.toString = function() {

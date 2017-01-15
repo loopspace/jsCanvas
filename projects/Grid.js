@@ -71,7 +71,7 @@ function Grid(n,s) {
 		var x = v.x - WIDTH/2, y = v.y - HEIGHT/2;
     x = Math.floor(x/sf*p+.5)/p;
     y = Math.floor(y/sf*p+.5)/p;
-    return vec2(x,y);
+    return new Vec2(x,y);
   }
   
   return this;

@@ -6,10 +6,10 @@ var radians = ["0", "\u03C0/2", "\u03C0", "3\u03C0/2", "2\u03C0"];
 var multipliers = {x: [-1,1], y: [1,-1]};
 
 function setup() {
-  parameter.bool("Trace","trace",false);
-  parameter.bool("Radians","radians",false);
-  parameter.bool("Mirror points","mirror",false);
-  parameter.bool("Rotate circle","rotate",false);
+  parameter.boolean("Trace","trace",false);
+  parameter.boolean("Radians","radians",false);
+  parameter.boolean("Mirror points","mirror",false);
+  parameter.boolean("Rotate circle","rotate",false);
   parameter.select("Track","track",["x","y","y/x"],"y");
 	parameter.number("Speed","speed",0,30,1,5);
   parameter.watch("Angle", function() {if (parameters.radians) { return Math.round(angle/180*Math.PI*100)/100} else {return Math.round(angle)}});
@@ -96,7 +96,7 @@ function draw() {
   circle(0,0,radius);
   strokeWidth(2);
   stroke(200);
-  var p = vec2(radius,0).rotate(angle);
+  var p = new Vec2(radius,0).rotate(angle);
   // draw the triangle
   line(0,0,p);
   line(p,p.x,0);
@@ -156,8 +156,8 @@ function touched(t) {
   } else if (t.state == ENDED) {
     inTouch = false;
   }
-  var p = vec2(t);
-  angle = (360+vec2(1,0).angleBetween(p.subtract(vec2(radius+40,HEIGHT/2))))%360;
+  var p = new Vec2(t);
+  angle = (360+ new Vec2(1,0).angleBetween(p.subtract(new Vec2(radius+40,HEIGHT/2))))%360;
 }
 
 function sineCurve(a,b,c,d) {
