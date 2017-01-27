@@ -33,7 +33,7 @@ function init() {
 				);
     var cvs = $('#cvs')[0];
     var ctx = cvs.getContext('2d');
-    var jc = new jsCanvas(ctx,$('#output'),$('#parameters'));
+    var jc = new jsCanvas(ctx,$('#output'),$('#parameters'),$('#panel'));
     var tabs = new Tabs($('#tabs'),cm);
     var code = localStorage.getItem('code');
     if (code !== null) {
@@ -47,6 +47,7 @@ function init() {
     }
 
     $('#panel').data('origWidth',$('#panel').width());
+    $('#canvas').data('origMargin',$('#canvas').css('marginLeft'));
 
     $('#execute').click(function() {
 	runCode(jc,tabs);
@@ -148,19 +149,29 @@ function setEditorSize() {
 
 $(window).on('resize',setEditorSize);
 
-
 /*
 Set the canvas to be as big as possible on the screen.
 */
 function setExecuteSize() {
-    $('#panel').height($(window).height());
+    var p = $('#panel');
+    var pd = p.css('display');
+    var c = $('#canvas');
+    p.css('display','block');
+    p.height($(window).height());
     var h = 2*$(window).height() - $(document).height();
-    $('#panel').height(h);
-    $('#panel').width($('#panel').data('origWidth'));
-    $('#canvas').css('display','block');
+    p.height(h);
+    p.width(p.data('origWidth'));
+    p.css('display',pd);
+    c.css('display','block');
     var w = $('#container').width();
-    w -= $('#panel').outerWidth() + 30;
-    $('#canvas').height(h);
+    if (pd == 'block') {
+	w -= p.outerWidth();
+	c.css('marginLeft',c.data('origMargin'));
+    } else {
+	c.css('marginLeft','0px');
+    }
+    w -= 30;
+    c.height(h);
     $('#cvs').attr('width',w);
     $('#cvs').attr('height',h - 6); // not sure why 6 here
     $('#restart').css('display','inline');
@@ -168,6 +179,8 @@ function setExecuteSize() {
     $('#paramdiv').css('display','block');
     $('#outdiv').css('height','50%');
 }
+
+$(window).on('resize',setExecuteSize);
 
 /*
 Get the code from the editor and pass it to the interpreter
@@ -304,7 +317,7 @@ function Tabs(t,cm) {
       Insert the code into tabs
     */
     this.setCode = function(c) {
-	var code = c.split(/\n(\/\/## [^\n]*)\n/);
+	var code = c.split(/^(\/\/## [^\n]*)\n/m);
 	var i = 0;
 	var match;
 	var tab;
@@ -315,16 +328,29 @@ function Tabs(t,cm) {
 	while(i < code.length) {
 	    match = code[i].match(/^\/\/## ([^\n]+)/);
 	    if (match !== null) {
-		tabs[match[1]] = code[++i].trim();
-		if (first || match[1] == "Main" ) {
-		    curr = true;
-		    cm.setValue(code[i].trim());
+		if (typeof tabs[match[1]] === "undefined") {
+		    // this tab doesn't already exist
+		    tabs[match[1]] = code[++i].trim();
+		    if (first || match[1] == "Main" ) {
+			curr = true;
+			cm.setValue(code[i].trim());
+		    } else {
+			curr = false;
+		    }
+		    tab = self.makeTab(match[1],curr);
+		    tab.insertBefore($("#add").parent());
+		    first = false;
 		} else {
-		    curr = false;
+		    // this tab does exist so we'll overwrite it
+		    tabs[match[1]] = code[++i].trim();
+		    if (first || match[1] == "Main" ) {
+			curr = true;
+			cm.setValue(code[i].trim());
+		    } else {
+			curr = false;
+		    }
+		    first = false;
 		}
-		tab = self.makeTab(match[1],curr);
-		tab.insertBefore($("#add").parent());
-		first = false;
 	    }
 	    i++;
 	}

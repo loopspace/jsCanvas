@@ -1,15 +1,20 @@
 /*
 This is our wrapper around the js execution
 */
-function jsCanvas(c,o,p) {
+function jsCanvas(c,o,p,pl) {
+    /*
+      Instance variables:
+      self.jsState; // transformation and style and similar
+      this.ctx; // refers to the current context on the canvas
+     */
     var self = this; // keep hold of this
-    var ctx = c; // canvas context
+    this.ctx = c; // canvas context
     var gctx = c; // so that we never lose the base canvas 
     var output = o; // output pane
     var params = p; // parameters pane
+    var panel = pl; // parameter panel
     p.submit(function() {return false;}); // disable submission
     var jsDraw; // the draw cycle animation
-    var jsState; // transformation and style and similar
     var jsGrExt; // our graphical extensions
     var jsG; // a global table
     var sTime; // time at which the script started
@@ -52,6 +57,9 @@ function jsCanvas(c,o,p) {
     this.executeJS = function(c,cl) {
 	var offset;
 	jsG = new Table;
+	pl.css('display','block');
+	$(window).trigger('resize');
+	
 	self.initialiseJS();
 	if (typeof c == 'string') {
 	    codetxt = self.prejs(true);
@@ -69,7 +77,7 @@ function jsCanvas(c,o,p) {
 	    self.clear();
 	}
 	sTime = Date.now();
-	$(ctx.canvas).focus();
+	$(self.ctx.canvas).focus();
 	try {
 	    code(jsG);
 	} catch (e) {
@@ -226,50 +234,49 @@ function jsCanvas(c,o,p) {
 	    },
 	    touches: [],
 	    keys: [],
-	    watches: [],
-	    parameters: []
+	    watches: []
 	}
     }
     
-    jsState = this.getState();
+    self.jsState = this.getState();
 
     /*
       Apply a style
     */
     this.applyStyle = function(s) {
-	ctx.lineWidth = s.strokeWidth;
-	ctx.fillStyle = s.fillColour.toCSS();
-	ctx.strokeStyle = s.strokeColour.toCSS();
-	ctx.font = s.fontSize + 'px ' + s.font;
+	self.ctx.lineWidth = s.strokeWidth;
+	self.ctx.fillStyle = s.fillColour.toCSS();
+	self.ctx.strokeStyle = s.strokeColour.toCSS();
+	self.ctx.font = s.fontSize + 'px ' + s.font;
 	if (s.lineCapMode == 0) {
-	    ctx.lineCap = "round";
+	    self.ctx.lineCap = "round";
 	} else if (s.lineCapMode == 1) {
-	    ctx.lineCap = "butt";
+	    self.ctx.lineCap = "butt";
 	} else if (s.lineCapMode == 2) {
-	    ctx.lineCap = "square";
+	    self.ctx.lineCap = "square";
 	}
-	ctx.globalCompositeOperation = s.blendMode;
+	self.ctx.globalCompositeOperation = s.blendMode;
     }
 
     this.applyTransformation = function(x,y) {
-	var p = jsState.transformation[0].applyTransformation(x,y);
-	var ch = ctx.canvas.height;
+	var p = self.jsState.transformation[0].applyTransformation(x,y);
+	var ch = self.ctx.canvas.height;
 	p.y *= -1;
 	p.y += ch;
 	return p;
     }
 
     this.applyTransformationNoShift = function(x,y) {
-	var p = jsState.transformation[0].applyTransformationNoShift(x,y);
+	var p = self.jsState.transformation[0].applyTransformationNoShift(x,y);
 	p.y *= -1;
 	return p;
     }
 
     this.clear = function() {
-	ctx.save();
-	ctx.setTransform(1,0,0,1,0,0);
-	ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
-	ctx.restore();
+	self.ctx.save();
+	self.ctx.setTransform(1,0,0,1,0,0);
+	self.ctx.clearRect(0,0,self.ctx.canvas.width,self.ctx.canvas.height);
+	self.ctx.restore();
     }
 
 /*
@@ -281,7 +288,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	window.blockMenuHeaderScroll = true;
 	self.recordTouch(e);
 	inTouch = true;
-	$(ctx.canvas).on('mousemove touchmove',self.recordTouch);
+	$(self.ctx.canvas).on('mousemove touchmove',self.recordTouch);
     }
 
     this.stopTouch = function(e) {
@@ -289,12 +296,12 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	window.blockMenuHeaderScroll = false;
 	if (inTouch)
 	    self.recordTouch(e);
-	$(ctx.canvas).off('mousemove touchmove');
+	$(self.ctx.canvas).off('mousemove touchmove');
 	inTouch = false;
     }
 
-    $(ctx.canvas).on('mousedown touchstart',self.startTouch);
-    $(ctx.canvas).on('mouseleave mouseup touchend touchcancel',self.stopTouch);
+    $(self.ctx.canvas).on('mousedown touchstart',self.startTouch);
+    $(self.ctx.canvas).on('mouseleave mouseup touchend touchcancel',self.stopTouch);
 
     this.recordTouch = (function() {
 	var prevTouch;
@@ -311,8 +318,8 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		pgx = e.pageX;
 		pgy = e.pageY;
 	    }
-	    x = Math.floor(pgx - $(ctx.canvas).offset().left);
-	    y = parseInt($(ctx.canvas).offset().top,10) + parseInt($(ctx.canvas).attr('height'),10) - pgy;
+	    x = Math.floor(pgx - $(self.ctx.canvas).offset().left);
+	    y = parseInt($(self.ctx.canvas).offset().top,10) + parseInt($(self.ctx.canvas).attr('height'),10) - pgy;
 	    if (e.type == 'mousedown' || e.type == 'touchstart') {
 		s = 0;
 	    } else if (e.type == 'mousemove' || e.type == 'touchmove') {
@@ -340,7 +347,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		deltaY: dy
 	    };
 	    prevTouch = t;
-	    jsState.touches.push(t);
+	    self.jsState.touches.push(t);
 	}
     })();
 
@@ -369,10 +376,10 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    ctrl: e.ctrlKey,
 	    alt: e.altKey,
 	};
-	jsState.keys.push(k);
+	self.jsState.keys.push(k);
     }
 
-    $(ctx.canvas).on('keydown keypress keyup',self.recordKey);
+    $(self.ctx.canvas).on('keydown keypress keyup',self.recordKey);
 
     this.prejs = function(b) {
 	var str;
@@ -406,17 +413,16 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    function(et,dt) {
 		jsG.set('ElapsedTime',et);
 		jsG.set('DeltaTime',dt);
-		jsState.transformation = [new Transformation()];
-		ctx = gctx;
-		jsState.parameters.forEach(
-		    function(f) { f() }
-		);
+		jsG.set('WIDTH',parseInt($(self.ctx.canvas).attr('width'),10));
+		jsG.set('HEIGHT',parseInt($(self.ctx.canvas).attr('height'),10));
+		self.jsState.transformation = [new Transformation()];
+		self.ctx = gctx;
 		try {
 		    draw();
 		} catch(e) {
 		    self.doError(e);
 		}
-		jsState.touches.forEach(
+		self.jsState.touches.forEach(
 		    function(t) {
 			try {
 			    touched(t);
@@ -425,7 +431,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 			}
 		    }
 		);
-		jsState.keys.forEach(
+		self.jsState.keys.forEach(
 		    function(k) {
 			try {
 			    key(k);
@@ -434,9 +440,9 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 			}
 		    }
 		);
-		jsState.touches = [];
-		jsState.keys = [];
-		jsState.watches.forEach(function(v) {v()});
+		self.jsState.touches = [];
+		self.jsState.keys = [];
+		self.jsState.watches.forEach(function(v) {v()});
 	    }
 	);
     }
@@ -446,8 +452,8 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	var g = jsG;
 	params.empty();
 	// Canvas dimensions
-	g.set('WIDTH',parseInt($(ctx.canvas).attr('width'),10));
-	g.set('HEIGHT',parseInt($(ctx.canvas).attr('height'),10));
+	g.set('WIDTH',parseInt($(self.ctx.canvas).attr('width'),10));
+	g.set('HEIGHT',parseInt($(self.ctx.canvas).attr('height'),10));
 	// Rectangle and Ellipse modes
 	g.set('CORNER',0);
 	g.set('CORNERS',1);
@@ -468,6 +474,10 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	g.set('ROUND',0);
 	g.set('SQUARE',1);
 	g.set('PROJECT',2);
+	// display mode
+	g.set('NORMAL',0);
+	g.set('FULLSIZE',1);
+	g.set('FULLSIZE_NO_BUTTONS',2);
 	// touches
 	g.set('BEGAN',0);
 	g.set('MOVING',1);
@@ -483,8 +493,8 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	g.set('draw', function() {});
 	g.set('touched', function() {});
 	g.set('key', function() {});
-	jsState = this.getState();
-	self.applyStyle(jsState.defaultStyle);
+	self.jsState = this.getState();
+	self.applyStyle(self.jsState.defaultStyle);
     }
 
     jsGrExt = {
@@ -517,13 +527,13 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    if (typeof(h) === "undefined") {
 		h = w;
 	    }
-	    if (jsState.style[0].rectMode == 1) {
+	    if (self.jsState.style[0].rectMode == 1) {
 		w -=x;
 		h -=y;
-	    } else if (jsState.style[0].rectMode == 2) {
+	    } else if (self.jsState.style[0].rectMode == 2) {
 		x -= w/2;
 		y -= h/2;
-	    } else if (jsState.style[0].rectMode == 3) {
+	    } else if (self.jsState.style[0].rectMode == 3) {
 		x -= w/2;
 		y -= h/2;
 		w *= 2;
@@ -532,23 +542,23 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    var p = self.applyTransformation(x,y);
 	    var r = self.applyTransformationNoShift(w,0);
 	    var s = self.applyTransformationNoShift(0,h);
-	    ctx.beginPath();
-	    ctx.save();
-	    ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
-	    ctx.rect(0,0,1,1);
-	    ctx.restore();
-	    if (jsState.style[0].fill) {
-		ctx.fill();
+	    self.ctx.beginPath();
+	    self.ctx.save();
+	    self.ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
+	    self.ctx.rect(0,0,1,1);
+	    self.ctx.restore();
+	    if (self.jsState.style[0].fill) {
+		self.ctx.fill();
 	    }
-	    if (jsState.style[0].stroke) {
-		ctx.stroke();
+	    if (self.jsState.style[0].stroke) {
+		self.ctx.stroke();
 	    }
 	},
 	rectMode: function(m) {
 	    if (typeof m !== 'undefined') {
-		jsState.style[0].rectMode = m;
+		self.jsState.style[0].rectMode = m;
 	    } else {
-		return jsState.style[0].rectMode;
+		return self.jsState.style[0].rectMode;
 	    }
 	},
 	polygon: function() {
@@ -556,7 +566,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    var x,y,p,ln;
 	    var args = Array.from(arguments);
 	    ln = 'moveTo';
-	    ctx.beginPath();
+	    self.ctx.beginPath();
 	    x = args[i];
 	    if (x instanceof Vec2) {
 		y = x.y;
@@ -566,7 +576,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		y = args[i];
 	    }
 	    p = self.applyTransformation(x,y);
-	    ctx.moveTo(p.x,p.y);
+	    self.ctx.moveTo(p.x,p.y);
 	    args.push(x,y);
 	    i++;
 	    while (i < args.length) {
@@ -579,14 +589,14 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		    y = args[i];
 		}
 		p = self.applyTransformation(x,y);
-		ctx.lineTo(p.x,p.y);
+		self.ctx.lineTo(p.x,p.y);
 		i++;
 	    }
-	    if (jsState.style[0].fill) {
-		ctx.fill();
+	    if (self.jsState.style[0].fill) {
+		self.ctx.fill();
 	    }
-	    if (jsState.style[0].stroke) {
-		ctx.stroke();
+	    if (self.jsState.style[0].stroke) {
+		self.ctx.stroke();
 	    }
 	},
 	polyline: function() {
@@ -594,7 +604,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    var x,y,p,ln;
 	    var args = Array.from(arguments);
 	    ln = 'moveTo';
-	    ctx.beginPath();
+	    self.ctx.beginPath();
 	    x = args[i];
 	    if (x instanceof Vec2) {
 		y = x.y;
@@ -604,7 +614,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		y = args[i];
 	    }
 	    p = self.applyTransformation(x,y);
-	    ctx.moveTo(p.x,p.y);
+	    self.ctx.moveTo(p.x,p.y);
 	    i++;
 	    while (i < args.length) {
 		x = args[i];
@@ -616,60 +626,60 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		    y = args[i];
 		}
 		p = self.applyTransformation(x,y);
-		ctx.lineTo(p.x,p.y);
+		self.ctx.lineTo(p.x,p.y);
 		i++;
 	    }
-	    if (jsState.style[0].fill) {
-		ctx.fill();
+	    if (self.jsState.style[0].fill) {
+		self.ctx.fill();
 	    }
-	    if (jsState.style[0].stroke) {
-		ctx.stroke();
+	    if (self.jsState.style[0].stroke) {
+		self.ctx.stroke();
 	    }
 	},
 	arcMode: function(m) {
 	    if (m !== 'undefined') {
-		jsState.style[0].arcMode = m;
+		self.jsState.style[0].arcMode = m;
 	    } else {
-		return jsState.style[0].arcMode;
+		return self.jsState.style[0].arcMode;
 	    }
 	},
 	bezierMode: function(m) {
 	    if (m !== 'undefined') {
-		jsState.style[0].bezierMode = m;
+		self.jsState.style[0].bezierMode = m;
 	    } else {
-		return jsState.style[0].bezierMode;
+		return self.jsState.style[0].bezierMode;
 	    }
 	},
 	blendMode: function(m) {
 	    if (m !== 'undefined') {
-		jsState.style[0].blendMode = m;
-		ctx.globalCompositeOperation = m;
+		self.jsState.style[0].blendMode = m;
+		self.ctx.globalCompositeOperation = m;
 	    } else {
-		return jsState.style[0].blendMode;
+		return self.jsState.style[0].blendMode;
 	    }
 	},
 	background: function(c,g,b,a) {
 	    if (!(c instanceof Colour)) {
 		c = new Colour(c,g,b,a);
 	    }
-	    ctx.save();
-	    ctx.globalCompositeOperation = 'source-over';
-	    ctx.fillStyle = c.toCSS();
-	    ctx.setTransform(1,0,0,1,0,0);
-	    ctx.beginPath();
-	    ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
-	    ctx.restore();
+	    self.ctx.save();
+	    self.ctx.globalCompositeOperation = 'source-over';
+	    self.ctx.fillStyle = c.toCSS();
+	    self.ctx.setTransform(1,0,0,1,0,0);
+	    self.ctx.beginPath();
+	    self.ctx.fillRect(0,0,self.ctx.canvas.width,self.ctx.canvas.height);
+	    self.ctx.restore();
 	},
 	fill: function (c,g,b,a) {
 	    if (typeof c != 'undefined') {
 		if (!(c instanceof Colour)) {
 		    c = new Colour(c,g,b,a);
 		}
-		ctx.fillStyle = c.toCSS();
-		jsState.style[0].fillColour = c;
-		jsState.style[0].fill = true;
+		self.ctx.fillStyle = c.toCSS();
+		self.jsState.style[0].fillColour = c;
+		self.jsState.style[0].fill = true;
 	    } else {
-		return ctx.fillStyle;
+		return self.ctx.fillStyle;
 	    }
 	},
 	stroke: function (c,g,b,a) {
@@ -678,27 +688,27 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		if (!(c instanceof Colour)) {
 		    c = new Colour(c,g,b,a);
 		}
-		ctx.strokeStyle = c.toCSS();
-		jsState.style[0].strokeColour = c;
-		jsState.style[0].stroke = true;
+		self.ctx.strokeStyle = c.toCSS();
+		self.jsState.style[0].strokeColour = c;
+		self.jsState.style[0].stroke = true;
 	    } else {
-		return ctx.strokeStyle;
+		return self.ctx.strokeStyle;
 	    }
 	},
 	strokeWidth: function (w) {
 	    if (typeof w != 'undefined') {
-		ctx.lineWidth = w;
-		jsState.style[0].strokeWidth = w;
-		jsState.style[0].stroke = true;
+		self.ctx.lineWidth = w;
+		self.jsState.style[0].strokeWidth = w;
+		self.jsState.style[0].stroke = true;
 	    } else {
-		return ctx.lineWidth;
+		return self.ctx.lineWidth;
 	    }
 	},
 	noFill: function() {
-	    jsState.style[0].fill = false;
+	    self.jsState.style[0].fill = false;
 	},
 	noStroke: function() {
-	    jsState.style[0].stroke = false;
+	    self.jsState.style[0].stroke = false;
 	},
 	line: function (x,y,xx,yy) {
 	    if (x instanceof Vec2) {
@@ -711,13 +721,13 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		yy = xx.y;
 		xx = xx.x;
 	    }
-	    if (jsState.style[0].stroke) {
+	    if (self.jsState.style[0].stroke) {
 		var p = self.applyTransformation(x,y);
 		var pp = self.applyTransformation(xx,yy);
-		ctx.beginPath();
-		ctx.moveTo(p.x,p.y);
-		ctx.lineTo(pp.x,pp.y);
-		ctx.stroke();
+		self.ctx.beginPath();
+		self.ctx.moveTo(p.x,p.y);
+		self.ctx.lineTo(pp.x,pp.y);
+		self.ctx.stroke();
 	    }
 	},
 /*
@@ -732,7 +742,7 @@ How should the angles interact with the transformation?
 		y = x.y;
 		x = x.x;
 	    }
-	    if (jsState.style[0].arcMode == 1)
+	    if (self.jsState.style[0].arcMode == 1)
 		ea += sa;
 	    sa *= Math.PI/180;
 	    ea *= Math.PI/180;
@@ -743,13 +753,13 @@ How should the angles interact with the transformation?
 	    var p = self.applyTransformation(x,y);
 	    var q = self.applyTransformationNoShift(r,0);
 	    var s = self.applyTransformationNoShift(0,r);
-	    ctx.beginPath();
-	    ctx.save();
-	    ctx.setTransform(q.x,q.y,s.x,s.y,p.x,p.y);
-	    ctx.arc(0,0,1,sa,ea,cl);
-	    ctx.restore();
-	    if (jsState.style[0].stroke) {
-		ctx.stroke();
+	    self.ctx.beginPath();
+	    self.ctx.save();
+	    self.ctx.setTransform(q.x,q.y,s.x,s.y,p.x,p.y);
+	    self.ctx.arc(0,0,1,sa,ea,cl);
+	    self.ctx.restore();
+	    if (self.jsState.style[0].stroke) {
+		self.ctx.stroke();
 	    }
 	},
 	bezier: function(ax,ay,bx,by,cx,cy,dx,dy) {
@@ -782,7 +792,7 @@ How should the angles interact with the transformation?
 		dx = dx.x;
 	    }
 
-	    if (jsState.style[0].bezierMode == 1) {
+	    if (self.jsState.style[0].bezierMode == 1) {
 		cy += dy;
 		cx += dx;
 		by += ay;
@@ -797,28 +807,28 @@ How should the angles interact with the transformation?
 	    var p = self.applyTransformation(ax,ay);
 	    var q = self.applyTransformationNoShift(1,0);
 	    var s = self.applyTransformationNoShift(0,1);
-	    ctx.beginPath();
-	    ctx.save();
-	    ctx.setTransform(q.x,q.y,s.x,s.y,p.x,p.y);
-	    ctx.moveTo(0,0);
-	    ctx.bezierCurveTo(bx,by,cx,cy,dx,dy);
-	    ctx.restore();
-	    if (jsState.style[0].stroke) {
-		ctx.stroke();
+	    self.ctx.beginPath();
+	    self.ctx.save();
+	    self.ctx.setTransform(q.x,q.y,s.x,s.y,p.x,p.y);
+	    self.ctx.moveTo(0,0);
+	    self.ctx.bezierCurveTo(bx,by,cx,cy,dx,dy);
+	    self.ctx.restore();
+	    if (self.jsState.style[0].stroke) {
+		self.ctx.stroke();
 	    }
 	},
 	lineCapMode: function(m) {
 	    if (typeof m !== 'undefined') {
 		if (m == 0) {
-		    ctx.lineCap = "round";
+		    self.ctx.lineCap = "round";
 		} else if (m == 1) {
-		    ctx.lineCap = "butt";
+		    self.ctx.lineCap = "butt";
 		} else if (m == 2) {
-		    ctx.lineCap = "square";
+		    self.ctx.lineCap = "square";
 		}
-		jsState.style[0].lineCapMode = m;
+		self.jsState.style[0].lineCapMode = m;
 	    } else {
-		return jsState.style[0].lineCapMode;
+		return self.jsState.style[0].lineCapMode;
 	    }
 	},
 	text: function (s,x,y) {
@@ -829,73 +839,73 @@ How should the angles interact with the transformation?
 	    var p = self.applyTransformation(x,y);
 	    var q = self.applyTransformationNoShift(1,0).normalise();
 	    var r = self.applyTransformationNoShift(0,-1).normalise();
-	    if (jsState.style[0].textMode == 1) {
-		var tm = ctx.measureText(s);
+	    if (self.jsState.style[0].textMode == 1) {
+		var tm = self.ctx.measureText(s);
 		p = p.subtract(q.multiply(tm.width));
-	    } else if (jsState.style[0].textMode == 2) {
-		var tm = ctx.measureText(s);
+	    } else if (self.jsState.style[0].textMode == 2) {
+		var tm = self.ctx.measureText(s);
 		p = p.subtract(q.multiply(tm.width/2));
 	    }
-	    if (jsState.style[0].textValign == 0) {
-		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
+	    if (self.jsState.style[0].textValign == 0) {
+		var f = self.jsState.style[0].fontSize + 'px ' + self.jsState.style[0].font;
 		var fm = getTextHeight(f,s);
 		p = p.subtract(r.multiply(fm.descent));
-	    } else if (jsState.style[0].textValign == 2) {
-		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
+	    } else if (self.jsState.style[0].textValign == 2) {
+		var f = self.jsState.style[0].fontSize + 'px ' + self.jsState.style[0].font;
 		var fm = getTextHeight(f,s);
 		p = p.add(r.multiply(fm.height/2-fm.descent));
-	    } else if (jsState.style[0].textValign == 3) {
-		var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
+	    } else if (self.jsState.style[0].textValign == 3) {
+		var f = self.jsState.style[0].fontSize + 'px ' + self.jsState.style[0].font;
 		var fm = getTextHeight(f,s);
 		p = p.add(r.multiply(fm.ascent));
 	    }
-	    ctx.save();
-	    ctx.beginPath();
-	    ctx.setTransform(q.x,q.y,r.x,r.y,p.x,p.y);
-	    ctx.fillText(s,0,0);
-	    ctx.restore();
+	    self.ctx.save();
+	    self.ctx.beginPath();
+	    self.ctx.setTransform(q.x,q.y,r.x,r.y,p.x,p.y);
+	    self.ctx.fillText(s,0,0);
+	    self.ctx.restore();
 	},
 	textMode: function(m) {
 	    if (typeof m !== 'undefined') {
 		if (m == 0) {
-		    jsState.style[0].textMode = 0;
+		    self.jsState.style[0].textMode = 0;
 		} else if (m == 1) {
-		    jsState.style[0].textMode = 1;
+		    self.jsState.style[0].textMode = 1;
 		} else if (m == 2) {
-		    jsState.style[0].textMode = 2;
+		    self.jsState.style[0].textMode = 2;
 		}
 	    } else {
-		return jsState.style[0].textMode;
+		return self.jsState.style[0].textMode;
 	    }
 	},
 	textValign: function(m) {
 	    if (typeof m !== 'undefined') {
 		if (m == 0) {
-		    jsState.style[0].textValign = 0;
+		    self.jsState.style[0].textValign = 0;
 		} else if (m == 1) {
-		    jsState.style[0].textValign = 1;
+		    self.jsState.style[0].textValign = 1;
 		} else if (m == 2) {
-		    jsState.style[0].textValign = 2;
+		    self.jsState.style[0].textValign = 2;
 		} else if (m == 3) {
-		    jsState.style[0].textValign = 3;
+		    self.jsState.style[0].textValign = 3;
 		}
 	    } else {
-		return jsState.style[0].textValign;
+		return self.jsState.style[0].textValign;
 	    }
 	},
 	textSize: function(s) {
-	    var tm = ctx.measureText(s);
-	    var f = jsState.style[0].fontSize + 'px ' + jsState.style[0].font;
+	    var tm = self.ctx.measureText(s);
+	    var f = self.jsState.style[0].fontSize + 'px ' + self.jsState.style[0].font;
 	    var fm = getTextHeight(f,s);
 	    return tm.width,fm.height;
 	},
 	font: function (f) {
-	    jsState.style[0].font = f;
-	    ctx.font = jsState.style[0].fontSize + 'px ' + f;
+	    self.jsState.style[0].font = f;
+	    self.ctx.font = self.jsState.style[0].fontSize + 'px ' + f;
 	},
 	fontSize: function (f) {
-	    jsState.style[0].fontSize = f;
-	    ctx.font = f + 'px ' + jsState.style[0].font;
+	    self.jsState.style[0].fontSize = f;
+	    self.ctx.font = f + 'px ' + self.jsState.style[0].font;
 	},
 	ellipse: function (x,y,w,h) {
 	    if (x instanceof Vec2) {
@@ -911,13 +921,13 @@ How should the angles interact with the transformation?
 	    if (typeof(h) === "undefined") {
 		h = w;
 	    }
-	    if (jsState.style[0].ellipseMode == 1) {
+	    if (self.jsState.style[0].ellipseMode == 1) {
 		w -=x;
 		h -=y;
-	    } else if (jsState.style[0].ellipseMode == 2) {
+	    } else if (self.jsState.style[0].ellipseMode == 2) {
 		x -= w/2;
 		y -= h/2;
-	    } else if (jsState.style[0].ellipseMode == 3) {
+	    } else if (self.jsState.style[0].ellipseMode == 3) {
 		x -= w/2;
 		y -= h/2;
 		w *= 2;
@@ -926,16 +936,16 @@ How should the angles interact with the transformation?
 	    var p = self.applyTransformation(x,y);
 	    var r = self.applyTransformationNoShift(w,0);
 	    var s = self.applyTransformationNoShift(0,h);
-	    ctx.save();
-	    ctx.beginPath();
-	    ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
-	    ctx.arc(0,0,1,0, 2 * Math.PI,false);
-	    ctx.restore();
-	    if (jsState.style[0].fill) {
-		ctx.fill();
+	    self.ctx.save();
+	    self.ctx.beginPath();
+	    self.ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
+	    self.ctx.arc(0,0,1,0, 2 * Math.PI,false);
+	    self.ctx.restore();
+	    if (self.jsState.style[0].fill) {
+		self.ctx.fill();
 	    }
-	    if (jsState.style[0].stroke) {
-		ctx.stroke();
+	    if (self.jsState.style[0].stroke) {
+		self.ctx.stroke();
 	    }
 	},
 	circle: function (x,y,r) {
@@ -944,102 +954,102 @@ How should the angles interact with the transformation?
 		y = x.y;
 		x = x.x;
 	    }
-	    if (jsState.style[0].ellipseMode == 1) {
+	    if (self.jsState.style[0].ellipseMode == 1) {
 		r -=x;
-	    } else if (jsState.style[0].ellipseMode == 2) {
+	    } else if (self.jsState.style[0].ellipseMode == 2) {
 		x -= r/2;
 		y -= r/2;
-	    } else if (jsState.style[0].ellipseMode == 3) {
+	    } else if (self.jsState.style[0].ellipseMode == 3) {
 		x -= r/2;
 		y -= r/2;
 		r *= 2;
 	    }
 	    var p = self.applyTransformation(x,y);
-	    var d = jsState.transformation[0].determinant();
+	    var d = self.jsState.transformation[0].determinant();
 	    d = Math.sqrt(d) * r;
-	    ctx.save();
-	    ctx.beginPath();
-	    ctx.setTransform(d,0,0,d,p.x,p.y);
-	    ctx.arc(0,0,1,0, 2 * Math.PI,false);
-	    ctx.restore();
-	    if (jsState.style[0].fill) {
-		ctx.fill();
+	    self.ctx.save();
+	    self.ctx.beginPath();
+	    self.ctx.setTransform(d,0,0,d,p.x,p.y);
+	    self.ctx.arc(0,0,1,0, 2 * Math.PI,false);
+	    self.ctx.restore();
+	    if (self.jsState.style[0].fill) {
+		self.ctx.fill();
 	    }
-	    if (jsState.style[0].stroke) {
-		ctx.stroke();
+	    if (self.jsState.style[0].stroke) {
+		self.ctx.stroke();
 	    }
 	},
 	ellipseMode: function(m) {
 	    if (typeof m !== 'undefined') {
-		jsState.style[0].ellipseMode = m;
+		self.jsState.style[0].ellipseMode = m;
 	    } else {
-		return jsState.style[0].ellipseMode;
+		return self.jsState.style[0].ellipseMode;
 	    }
 	},
 	pushStyle: function() {
 	    var s = {};
-	    Object.keys(jsState.style[0]).forEach(function(v) {
-		s[v] = jsState.style[0][v];
+	    Object.keys(self.jsState.style[0]).forEach(function(v) {
+		s[v] = self.jsState.style[0][v];
 	    })
-	    jsState.style.unshift(s);
+	    self.jsState.style.unshift(s);
 	},
 	popStyle: function() {
-	    jsState.style.shift();
-	    self.applyStyle(jsState.style[0]);
+	    self.jsState.style.shift();
+	    self.applyStyle(self.jsState.style[0]);
 	},
 	resetStyle: function() {
-	    Object.keys(jsState.defaultStyle).forEach(function(v) {
-		jsState.style[0][v] = jsState.defaultStyle[v];
+	    Object.keys(self.jsState.defaultStyle).forEach(function(v) {
+		self.jsState.style[0][v] = self.jsState.defaultStyle[v];
 	    })
-	    self.applyStyle(jsState.style[0]);
+	    self.applyStyle(self.jsState.style[0]);
 	},
 	pushTransformation: function() {
-	    jsState.transformation.unshift(new Transformation(jsState.transformation[0]));
+	    self.jsState.transformation.unshift(new Transformation(self.jsState.transformation[0]));
 	},
 	popTransformation: function() {
-	    jsState.transformation.shift();
+	    self.jsState.transformation.shift();
 	},
 	resetTransformation: function() {
-	    jsState.transformation[0] = new Transformation();
+	    self.jsState.transformation[0] = new Transformation();
 	},
 	translate: function(x,y) {
 	    if (x instanceof Vec2) {
 		y = x.y;
 		x = x.x;
 	    }
-	    jsState.transformation[0] = jsState.transformation[0].translate(x,y);
+	    self.jsState.transformation[0] = self.jsState.transformation[0].translate(x,y);
 	},
 	scale: function(a,b) {
 	    if (a instanceof Vec2) {
 		b = a.y;
 		a = a.x;
 	    }
-	    jsState.transformation[0] = jsState.transformation[0].scale(a,b);
+	    self.jsState.transformation[0] = self.jsState.transformation[0].scale(a,b);
 	},
 	xsheer: function(a) {
-	    jsState.transformation[0] = jsState.transformation[0].xsheer(a);
+	    self.jsState.transformation[0] = self.jsState.transformation[0].xsheer(a);
 	},
 	ysheer: function(a) {
-	    jsState.transformation[0] = jsState.transformation[0].ysheer(a);
+	    self.jsState.transformation[0] = self.jsState.transformation[0].ysheer(a);
 	},
 	rotate: function(ang,x,y) {
-	    jsState.transformation[0] = jsState.transformation[0].rotate(ang,x,y);
+	    self.jsState.transformation[0] = self.jsState.transformation[0].rotate(ang,x,y);
 	},
 	applyTransformation: function(x,y) {
-	    return jsState.transformation[0].applyTransformation(x,y);
+	    return self.jsState.transformation[0].applyTransformation(x,y);
 	},
 	composeTransformation: function(m) {
-	    jsState.transformation[0] = jsState.transformation[0].composeTransformation(m);
+	    self.jsState.transformation[0] = self.jsState.transformation[0].composeTransformation(m);
 	},
 	modelTransformation: function(m) {
 	    if (typeof m !== 'undefined') {
-		jsState.transformation[0] = new Transformation(m);
+		self.jsState.transformation[0] = new Transformation(m);
 	    } else {
-		return jsState.transformation[0];
+		return self.jsState.transformation[0];
 	    }
 	},
 	clearState: function() {
-	    jsState = self.getState();
+	    self.jsState = self.getState();
 	},
 	/* These aren't good javascript OO
 	colour: function(r,g,b,a) {
@@ -1076,18 +1086,18 @@ How should the angles interact with the transformation?
 	},
 	setContext: function(c) {
 	    if (typeof c !== 'undefined') {
-		ctx = c;
+		self.ctx = c;
 	    } else {
-		ctx = gctx;
+		self.ctx = gctx;
 	    }
 	},
 	smooth: function() {
-	    ctx.imageSmoothingEnabled = true;
-	    $(ctx.canvas).removeClass('pixelated');
+	    self.ctx.imageSmoothingEnabled = true;
+	    $(self.ctx.canvas).removeClass('pixelated');
 	},
 	noSmooth: function() {
-	    ctx.imageSmoothingEnabled = false;
-	    $(ctx.canvas).addClass('pixelated');
+	    self.ctx.imageSmoothingEnabled = false;
+	    $(self.ctx.canvas).addClass('pixelated');
 	},
 	sprite: function(img,x,y,w,h) {
 	    if (img.canvas)
@@ -1117,10 +1127,10 @@ How should the angles interact with the transformation?
 	    var p = self.applyTransformation(x,y+h);
 	    var r = self.applyTransformationNoShift(1,0).normalise();
 	    var s = self.applyTransformationNoShift(0,-1).normalise();
-	    ctx.save();
-	    ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
-	    ctx.drawImage(img,0,0,w,h);
-	    ctx.restore();
+	    self.ctx.save();
+	    self.ctx.setTransform(r.x,r.y,s.x,s.y,p.x,p.y);
+	    self.ctx.drawImage(img,0,0,w,h);
+	    self.ctx.restore();
 	},
 	saveImage: function(img,s) {
 	    if (typeof(s) === 'undefined')
@@ -1137,549 +1147,26 @@ How should the angles interact with the transformation?
 		params.append(pdiv);
 	    });
 	},
-	parameters: {},
-	parameter: {
-	    text: function(title,n,i,f) {
-		if (typeof(i) === "undefined")
-		    i = '';
-		jsGrExt.parameters[n] = i;
-		var tname = $('<span>');
-		tname.text(title + ':');
-		tname.addClass('parameter');
-		tname.addClass('text');
-		var tfield = $('<input>');
-		tfield.addClass('parameter');
-		tfield.addClass('text');
-		tfield.attr('type','text');
-		tfield.val(i);
-		jsState.parameters.push(
-		    function() {
-			if (! tfield.is(":focus")) {
-			    tfield.val(jsGrExt.parameters[n]);
-			};
-		    }
-		);
-		var cfn;
-		if (typeof(f) === "function") {
-		    cfn = function(e) {
-			jsGrExt.parameters[n] = $(e.target).val();
-			f($(e.target).val());
-			return false;
-		    }
-		} else {
-		    cfn = function(e) {
-			jsGrExt.parameters[n] = $(e.target).val();
-			return false;
-		    }
-		}
-		tfield.change(cfn);
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		pdiv.append(tname);
-		pdiv.append(tfield);
-		params.append(pdiv);
-	    },
-	    number: function(title,n,a,b,v,i,f) {
-		if (typeof a === 'undefined')
-		{
-		    a = 0;
-		    b = 1;
-		    v = 0.1;
-		}
-		if (typeof i === 'undefined')
-		    i = a;
-		if (typeof v === 'undefined')
-		    v = 1;
-		jsGrExt.parameters[n] = i;
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		var slider = $('<div>');
-		var tval = $('<span>');
-		var sfn,cfn;
-		cfn = function(e,u) {
-		    jsGrExt.parameters[n] = u.value;
-		    tval.text(u.value);
-		}
-		if (typeof(f) === "function") {
-		    sfn = function(e,u) {
-			jsGrExt.parameters[n] = u.value;
-			tval.text(u.value);
-			f(u.value);
-		    }
-		}
-		slider.slider({
-		    slide: cfn,
-		    stop: sfn,
-		    min: a,
-		    max: b,
-		    value: i,
-		    step: v
-		});
-		jsState.parameters.push(
-		    function() {
-			slider.slider("value",jsGrExt.parameters[n]);
-			tval.text(jsG.get(n));
-		    }
-		);
-		var tname = $('<span>');
-		tname.text(title);
-		tname.addClass('parameter');
-		tname.addClass('text');
-		tval.text(i);
-		tval.addClass('parameter');
-		tval.addClass('value');
-		pdiv.append(tname);
-		pdiv.append(tval);
-		pdiv.append(slider);
-		params.append(pdiv);
-	    },
-	    select: function(title,n,o,i,f) {
-		jsGrExt.parameters[n] = i;
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		var tname = $('<span>');
-		tname.text(title);
-		tname.addClass('parameter');
-		tname.addClass('select');
-		var sel = $('<select>');
-		var op;
-		var v;
-		for (var i = 0; i < o.length; i++) {
-		    op = $('<option>');
-		    v = o[i];
-		    op.val(v);
-		    op.text(v);
-		    if (v === i) {
-			op.attr('selected',true);
-		    }
-		    sel.append(op);
-		}
-		jsState.parameters.push(
-		    function() {
-			sel.val(jsGrExt.parameters[n]);
-		    }
-		);
-		var cfn;
-		if (typeof(f) === "function") {
-		    cfn = function(e) {
-			jsGrExt.parameters[n] = $(e.target).val();
-			f($(e.target).val());
-			return false;
-		    }
-		} else {
-		    cfn = function(e) {
-			jsGrExt.parameters[n] = $(e.target).val();
-			return false;
-		    }
-		}
-		sel.change(cfn);
-		pdiv.append(tname);
-		pdiv.append(sel);
-		params.append(pdiv);
-	    },
-	    watch: function(t,f) {
-		var tname = $('<span>');
-		tname.text(t + ':');
-		tname.addClass('parameter');
-		tname.addClass('watch_title');
-		var tfield = $('<span>');
-		tfield.addClass('parameter');
-		tfield.addClass('watch_expression');
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		pdiv.append(tname);
-		pdiv.append(tfield);
-		params.append(pdiv);
-		jsState.watches.push(
-		    function() {
-			tfield.text(f());
-		    }
-		);
-	    },
-	    colour: function(title,c,ic,f) {
-		jsGrExt.parameters[c] = ic;
-		var tname = $('<span>');
-		tname.text(title + ':');
-		tname.addClass('parameter');
-		tname.addClass('colour');
-		var tfield = $('<input>');
-		tfield.addClass('parameter');
-		tfield.addClass('colour');
-		tfield.attr('type','color');
-		tfield.val(ic.toHex());
-		jsState.parameters.push(
-		    function() {
-			if (! tfield.is(":focus")) {
-			    tfield.val(jsGrExt.parameters[c].toHex());
-			}
-		    }
-		);
-		var cfn;
-		if (typeof(f) === "function") {
-		    cfn = function(e) {
-			jsGrExt.parameters[c] = new Colour($(e.target).val());
-	 		f(new Colour($(e.target).val()));
-			return false;
-		    }
-		} else {
-		    cfn = function(e) {
-			jsGrExt.parameters[c] = new Colour($(e.target).val());
-			return false;
-		    }
-		}
-		tfield.on('input',cfn);
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		pdiv.append(tname);
-		pdiv.append(tfield);
-		params.append(pdiv);
-	    },
-	    clear: function() {
-		params.empty();
-	    },
-	    action: function(name,f) {
-		var tfield = $('<input>');
-		tfield.addClass('parameter');
-		tfield.addClass('action');
-		tfield.attr('type','button');
-		tfield.val(name);
-		tfield.click(function() {f(); return false;});
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		pdiv.append(tfield);
-		params.append(pdiv);
-	    },
-	    boolean: function(title,n,i,f) {
-		if (typeof(i) === "undefined")
-		    i = true;
-		jsGrExt.parameters[n] = i;
-		var tname = $('<span>');
-		tname.text(title + ':');
-		tname.addClass('parameter');
-		tname.addClass('boolean');
-		var tfield = $('<input>');
-		tfield.addClass('parameter');
-		tfield.addClass('boolean');
-		tfield.addClass('onoffswitch-checkbox');
-		tfield.attr('type','checkbox');
-		tfield.attr('checked',i);
-		tfield.uniqueId();
-		jsState.parameters.push(
-		    function() {
-			tfield.prop("checked",jsGrExt.parameters[n]);
-		    }
-		);
-
-		var lbl = $('<label>');
-		lbl.addClass('onoffswitch-label');
-		lbl.attr('for',tfield.attr('id'));
-		var spna = $('<div>');
-		spna.addClass('onoffswitch-inner');
-		var spnb = $('<span>');
-		spnb.addClass('onoffswitch-switch');
-		var dv = $('<div>');
-		dv.addClass('onoffswitch');
-		var cfn;
-		if (typeof(f) === "function") {
-		    cfn = function(e) {
-			jsGrExt.parameters[n] = $(e.target).is(':checked');
-			f($(e.target).is(':checked'));
-			return false;
-		    }
-		} else {
-		    cfn = function(e) {
-			jsGrExt.parameters[n] = $(e.target).is(':checked');
-			return false;
-		    }
-		}
-		tfield.change(cfn);
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		pdiv.append(tname);
-		pdiv.append(dv);
-		params.append(pdiv);
-		dv.append(tfield);
-		dv.append(lbl);
-		lbl.append(spna);
-		lbl.append(spnb);
-	    }
-	},
 	output: {
 	    clear: function() {
 		output.text('');
 	    }
+	},
+	displayMode: function(m) {
+	    if (m == 0) {
+		pl.css('display','block');
+	    } else if (m == 1) {
+		pl.css('display','none');
+	    }
+	    $(window).trigger('resize');
 	}
     }
 
-//    console.log(jsGrExt);
+    Path.prototype.jc = this;
+    Parameter.prototype.jc = this;
+    Parameter.prototype.params = params;
 
-    /*
-      Path is a subobject of jsCanvas so that it has access to the
-      current transformation
-    */
-
-    Path = new(function(t) {
-	return function(x,y) {
-	    var lc = t;
-	    var self = this;
-	    this.path = [];
-	
-	    if (typeof x !== "undefined") {
-		var p = lc.applyTransformation(x,y);
-		this.path.push(["moveTo",[p.x,p.y]]);
-		self.point = p;
-	    }
-
-	    this.moveTo = function(x,y) {
-		var p = lc.applyTransformation(x,y);
-		self.path.push(["moveTo",[p.x,p.y]]);
-		self.point = p;
-	    }
-	    
-	    this.lineTo = function(x,y) {
-		var p = lc.applyTransformation(x,y);
-		self.path.push(["lineTo",[p.x,p.y]]);
-		self.point = p;
-	    }
-
-	    this.close = function() {
-		self.path.push(["closePath",[]]);
-	    }
-
-	    this.curveTo = function(bx,by,cx,cy,dx,dy) {
-		if (bx instanceof Vec2) {
-		    dy = dx
-		    dx = cy
-		    cy = cx
-		    cx = by
-		    by = bx.y
-		    bx = bx.x
-		}
-		if (cx instanceof Vec2) {
-		    dy = dx
-		    dx = cy
-		    cy = cx.y
-		    cx = cx.x
-		}
-		if (dx instanceof Vec2) {
-		    dy = dx.y
-		    dx = dx.x
-		}
-		if (jsState.style[0].bezierMode == 1) {
-		    cy += dy;
-		    cx += dx;
-		    by += self.point.y;
-		    bx += self.point.x;
-		}
-		var p = lc.applyTransformation(dx,dy);
-		var q = lc.applyTransformation(cx,cy);
-		var r = lc.applyTransformation(bx,by);
-		
-		self.path.push(["bezierCurveTo",[r.x,r.y,q.x,q.y,p.x,p.y]]);
-	    }
-	    /*
-	      Should the angles of an arc interact with the transformation?
-	     */
-	    this.arc = function(x,y,r,sa,ea,cl) {
-		if (x instanceof Vec2) {
-		    ea = sa;
-		    sa = r;
-		    r = y;
-		    y = x.y;
-		    x = x.x;
-		}
-		if (jsState.style[0].arcMode == 1)
-		    ea += sa;
-		sa *= -Math.PI/180;
-		ea *= -Math.PI/180;
-		cl = !cl;
-		var p = lc.applyTransformation(x,y);
-		self.path.push(["arc",[p.x,p.y,r,sa,ea,cl]]);
-	    }
-
-
-	    /*
-	      Consider replacing rect by a piece-wise rect.
-	    */
-	    this.rect = function(x,y,w,h) {
-		if (x instanceof Vec2) {
-		    h = w;
-		    w = y;
-		    y = x.y;
-		    x = x.x;
-		}
-		if (w instanceof Vec2) {
-		    h = w.y;
-		    w = w.x;
-		}
-		if (jsState.style[0].rectMode == 1) {
-		    w -=x;
-		    h -=y;
-		} else if (jsState.style[0].rectMode == 2) {
-		    x -= w/2;
-		    y -= h/2;
-		} else if (jsState.style[0].rectMode == 3) {
-		    x -= w/2;
-		    y -= h/2;
-		    w *= 2;
-		    h *= 2;
-		}
-		var p = lc.applyTransformation(x,y);
-		self.path.push(["rect",[p.x,p.y,w,h]]);
-		self.point = p;
-	    }
-
-	    this.draw = function(opts) {
-		if (typeof opts === "undefined")
-		    opts = new Table;
-		var d = opts.get("draw");
-		if (!d)
-		    opts.set("draw",true);
-		self.use(opts);
-	    }
-
-	    this.fill = function(opts) {
-		if (typeof opts === "undefined")
-		    opts = new Table;
-		var d = opts.get("fill");
-		if (!d)
-		    opts.set("fill",true);
-		self.use(opts);
-	    }
-
-	    this.filldraw = function(opts) {
-		if (typeof opts === "undefined")
-		    opts = new Table;
-		var d = opts.get("draw");
-		if (!d)
-		    opts.set("draw",true);
-		d = opts.get("fill");
-		if (!d)
-		    opts.set("fill",true);
-		self.use(opts);
-	    }
-
-	    this.use = function(opts) {
-		var p,b,m,c,w,d,f;
-		if (typeof opts !== "undefined") {
-		    b = opts.get("transformShape");
-		    if (typeof b === "undefined")
-			b = false;
-		    m = opts.get("transformation");
-		    if (typeof m === "undefined") {
-			m = jsState.transformation[0];
-		    } else {
-			b = true;
-		    }
-		    c = opts.get("colour");
-		    w = opts.get("strokeWidth");
-		    d = opts.get("draw");
-		    f = opts.get("fill");
-		}
-		if (b) {
-		    p = [];
-		    self.path.forEach(function(v) {
-			var a = argTransform[v[0]](m,v[1]);
-			p.push([v[0],a]);
-		    });
-		} else {
-		    p = self.path;
-		}
-		ctx.save();
-		ctx.save();
-		ctx.setTransform(1,0,0,1,0,0);
-		ctx.beginPath();
-		p.forEach(function(v) {
-		    ctx[v[0]].apply(ctx,v[1]);
-		});
-		ctx.restore();
-		if (c) {
-		    ctx.strokeStyle = c.toCSS();
-		    ctx.fillStyle = c.toCSS();
-		}
-		if (d instanceof Colour)
-		    ctx.strokeStyle = d.toCSS();
-		if (f instanceof Colour)
-		    ctx.fillStyle = f.toCSS();
-		if (w)
-		    ctx.lineWidth = w;
-		if (f)
-		    ctx.fill()
-		if (d)
-		    ctx.stroke();
-		ctx.restore();
-	    }
-
-	    this.clear = function() {
-		self.path = [];
-	    }
-
-	    var argTransform = {
-		moveTo: function(m,a) {
-		    var ch = ctx.canvas.height;
-		    var x,y;
-		    x = a[0];
-		    y = ch - a[1];
-		    var p = m.applyTransformation(x,y);
-		    p.y *= -1;
-		    p.y += ch;
-		    return [p.x,p.y];
-		},
-		lineTo: function(m,a) {
-		    var ch = ctx.canvas.height;
-		    var x,y;
-		    x = a[0];
-		    y = ch - a[1];
-		    var p = m.applyTransformation(x,y);
-		    p.y *= -1;
-		    p.y += ch;
-		    return [p.x,p.y];
-		},
-		bezierCurveTo: function(m,a) {
-		    var ch = ctx.canvas.height;
-		    var x,y,p;
-		    x = a[0];
-		    y = ch - a[1];
-		    p = m.applyTransformation(x,y);
-		    x = a[2];
-		    y = ch - a[3];
-		    q = m.applyTransformation(x,y);
-		    x = a[4];
-		    y = ch - a[5];
-		    r = m.applyTransformation(x,y);
-		    p.y *= -1;
-		    p.y += ch;
-		    q.y *= -1;
-		    q.y += ch;
-		    r.y *= -1;
-		    r.y += ch;
-		    return [p.x,p.y,q.x,q.y,r.x,r.y];
-		},
-		arc: function(m,a) {
-		    var ch = ctx.canvas.height;
-		    var x,y;
-		    x = a[0];
-		    y = ch - a[1];
-		    var p = m.applyTransformation(x,y);
-		    p.y *= -1;
-		    p.y += ch;
-		    return [p.x,p.y,a[2],a[3],a[4],a[5]];
-		},
-		rect: function(m,a) {
-		    var ch = ctx.canvas.height;
-		    var x,y;
-		    x = a[0];
-		    y = ch - a[1];
-		    var p = m.applyTransformation(x,y);
-		    p.y *= -1;
-		    p.y += ch;
-		    return [p.x,p.y,a[2],a[3]];
-		}
-
-	    }
-	    
-	}
-    })(this);
+    return this;
 
 }
 
@@ -1754,50 +1241,51 @@ function Colour(r,g,b,a) {
     this.b = b;
     this.a = a;
 
-    this.toString = function() {
-	return '(' + this.r + ',' + this.g + ',' + this.b + ',' + this.a + ')';
-    }
-
-    this.toCSS = function() {
-	var r,g,b,a;
-	r = Math.floor(self.r);
-	g = Math.floor(self.g);
-	b = Math.floor(self.b);
-	a = self.a/255;
-	return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
-    }
-
-    this.toHex = function() {
-	return '#' + toHex(this.r) + toHex(this.g) + toHex(this.b);
-    }
-    
-    this.is_a = function(c) {
-	return (c instanceof Colour);
-    }
-    
-    this.mix = function(c,t) {
-	var r,g,b,a,s;
-	s = 1 - t;
-	r = t*c.r + s*self.r;
-	g = t*c.g + s*self.g;
-	b = t*c.b + s*self.b;
-	a = t*c.a + s*self.a;
-	return new Colour(r,g,b,a);
-    }
-
-    this.blend = function(c) {
-	var r,g,b,a,s,t;
-	s = this.a/255;
-	t = 1 - s;
-	r = t*c.r + s*this.r;
-	g = t*c.g + s*this.g;
-	b = t*c.b + s*this.b;
-	a = t*c.a + s*this.a;
-	return new Colour(r,g,b,a);
-    }
-
     return this;
 }
+
+Colour.prototype.toString = function() {
+    return '(' + this.r + ',' + this.g + ',' + this.b + ',' + this.a + ')';
+}
+
+Colour.prototype.toCSS = function() {
+    var r,g,b,a;
+    r = Math.floor(this.r);
+    g = Math.floor(this.g);
+    b = Math.floor(this.b);
+    a = this.a/255;
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
+
+Colour.prototype.toHex = function() {
+    return '#' + toHex(this.r) + toHex(this.g) + toHex(this.b);
+}
+    
+Colour.prototype.is_a = function(c) {
+    return (c instanceof Colour);
+}
+    
+Colour.prototype.mix = function(c,t) {
+    var r,g,b,a,s;
+    s = 1 - t;
+    r = t*c.r + s*this.r;
+    g = t*c.g + s*this.g;
+    b = t*c.b + s*this.b;
+    a = t*c.a + s*this.a;
+    return new Colour(r,g,b,a);
+}
+
+Colour.prototype.blend = function(c) {
+    var r,g,b,a,s,t;
+    s = this.a/255;
+    t = 1 - s;
+    r = t*c.r + s*this.r;
+    g = t*c.g + s*this.g;
+    b = t*c.b + s*this.b;
+    a = t*c.a + s*this.a;
+    return new Colour(r,g,b,a);
+}
+
 
 // For Americans ...
 Color = Colour
@@ -2171,6 +1659,587 @@ Vec2.prototype.angle = function(v) {
 Vec2.prototype.toString = function() {
 	return '(' + this.x + ',' + this.y + ')';
     }
+
+/*
+  Path is a subobject of jsCanvas so that it has access to the
+  current transformation
+*/
+
+function Path(x,y) {
+    var self = this;
+    this.path = [];
+
+    if (typeof x !== "undefined") {
+	var p = this.jc.applyTransformation(x,y);
+	this.path.push(["moveTo",[p.x,p.y]]);
+	this.point = p;
+    }
+}
+
+Path.prototype.moveTo = function(x,y) {
+    var p = this.jc.applyTransformation(x,y);
+    this.path.push(["moveTo",[p.x,p.y]]);
+    this.point = p;
+}
+	    
+Path.prototype.lineTo = function(x,y) {
+    var p = this.jc.applyTransformation(x,y);
+    this.path.push(["lineTo",[p.x,p.y]]);
+    this.point = p;
+}
+
+Path.prototype.close = function() {
+    this.path.push(["closePath",[]]);
+}
+
+Path.prototype.curveTo = function(bx,by,cx,cy,dx,dy) {
+    if (bx instanceof Vec2) {
+	dy = dx
+	dx = cy
+	cy = cx
+	cx = by
+	by = bx.y
+	bx = bx.x
+    }
+    if (cx instanceof Vec2) {
+	dy = dx
+	dx = cy
+	cy = cx.y
+	cx = cx.x
+    }
+    if (dx instanceof Vec2) {
+	dy = dx.y
+	dx = dx.x
+    }
+    if (this.jc.jsState.style[0].bezierMode == 1) {
+	cy += dy;
+	cx += dx;
+	by += this.point.y;
+	bx += this.point.x;
+    }
+    var p = this.jc.applyTransformation(dx,dy);
+    var q = this.jc.applyTransformation(cx,cy);
+    var r = this.jc.applyTransformation(bx,by);
+    
+    this.path.push(["bezierCurveTo",[r.x,r.y,q.x,q.y,p.x,p.y]]);
+}
+/*
+  Should the angles of an arc interact with the transformation?
+*/
+Path.prototype.arc = function(x,y,r,sa,ea,cl) {
+    if (x instanceof Vec2) {
+	ea = sa;
+	sa = r;
+	r = y;
+	y = x.y;
+	x = x.x;
+    }
+    if (this.jc.jsState.style[0].arcMode == 1)
+	ea += sa;
+    sa *= -Math.PI/180;
+    ea *= -Math.PI/180;
+    cl = !cl;
+    var p = this.jc.applyTransformation(x,y);
+    this.path.push(["arc",[p.x,p.y,r,sa,ea,cl]]);
+}
+
+
+/*
+  Consider replacing rect by a piece-wise rect.
+*/
+Path.prototype.rect = function(x,y,w,h) {
+    if (x instanceof Vec2) {
+	h = w;
+	w = y;
+	y = x.y;
+	x = x.x;
+    }
+    if (w instanceof Vec2) {
+	h = w.y;
+	w = w.x;
+    }
+    if (this.jc.jsState.style[0].rectMode == 1) {
+	w -=x;
+	h -=y;
+    } else if (this.jc.jsState.style[0].rectMode == 2) {
+	x -= w/2;
+	y -= h/2;
+    } else if (this.jc.jsState.style[0].rectMode == 3) {
+	x -= w/2;
+	y -= h/2;
+	w *= 2;
+	h *= 2;
+    }
+    var p = this.jc.applyTransformation(x,y);
+    this.path.push(["rect",[p.x,p.y,w,h]]);
+    this.point = p;
+}
+
+Path.prototype.draw = function(opts) {
+    if (typeof opts === "undefined")
+	opts = {};
+    if (typeof opts.draw === "undefined")
+	opts.draw = true;
+    this.use(opts);
+}
+
+Path.prototype.fill = function(opts) {
+    if (typeof opts === "undefined")
+	opts = {};
+    if (typeof opts.fill === "undefined")
+	opts.fill = true;
+    this.use(opts);
+}
+
+Path.prototype.filldraw = function(opts) {
+    if (typeof opts === "undefined")
+	opts = {};
+    if (typeof opts.fill === "undefined")
+	opts.fill = true;
+    if (typeof opts.draw === "undefined")
+	opts.draw = true;
+    this.use(opts);
+}
+
+Path.prototype.use = function(opts) {
+    var p,b,m,c,w,d,f,jc;
+    jc = this.jc;
+    if (typeof opts !== "undefined") {
+	b = opts.transformShape;
+	if (typeof b === "undefined")
+	    b = false;
+	m = opts.transformation;
+	if (typeof m === "undefined") {
+	    m = jc.jsState.transformation[0];
+	} else {
+	    b = true;
+	}
+	c = opts.colour;
+	w = opts.strokeWidth;
+	d = opts.draw;
+	f = opts.fill;
+    }
+    if (b) {
+	p = [];
+	this.path.forEach(function(v) {
+	    var a = this.argTransform[v[0]](m,v[1]);
+	    p.push([v[0],a]);
+	});
+    } else {
+	p = this.path;
+    }
+    jc.ctx.save();
+    jc.ctx.save();
+    jc.ctx.setTransform(1,0,0,1,0,0);
+    jc.ctx.beginPath();
+    p.forEach(function(v) {
+	jc.ctx[v[0]].apply(jc.ctx,v[1]);
+    });
+    jc.ctx.restore();
+    if (c) {
+	jc.ctx.strokeStyle = c.toCSS();
+	jc.ctx.fillStyle = c.toCSS();
+    }
+    if (d instanceof Colour)
+	jc.ctx.strokeStyle = d.toCSS();
+    if (f instanceof Colour)
+	jc.ctx.fillStyle = f.toCSS();
+    if (w)
+	jc.ctx.lineWidth = w;
+    if (f)
+	jc.ctx.fill()
+    if (d)
+	jc.ctx.stroke();
+    jc.ctx.restore();
+}
+
+Path.prototype.clear = function() {
+    this.path = [];
+}
+
+Path.prototype.argTransform = {
+    moveTo: function(m,a) {
+	var ch = this.jc.ctx.canvas.height;
+	var x,y;
+	x = a[0];
+	y = ch - a[1];
+	var p = m.applyTransformation(x,y);
+	p.y *= -1;
+	p.y += ch;
+	return [p.x,p.y];
+    },
+    lineTo: function(m,a) {
+	var ch = this.jc.ctx.canvas.height;
+	var x,y;
+	x = a[0];
+	y = ch - a[1];
+	var p = m.applyTransformation(x,y);
+	p.y *= -1;
+	p.y += ch;
+	return [p.x,p.y];
+    },
+    bezierCurveTo: function(m,a) {
+	var ch = this.jc.ctx.canvas.height;
+	var x,y,p;
+	x = a[0];
+	y = ch - a[1];
+	p = m.applyTransformation(x,y);
+	x = a[2];
+	y = ch - a[3];
+	q = m.applyTransformation(x,y);
+	x = a[4];
+	y = ch - a[5];
+	r = m.applyTransformation(x,y);
+	p.y *= -1;
+	p.y += ch;
+	q.y *= -1;
+	q.y += ch;
+	r.y *= -1;
+	r.y += ch;
+	return [p.x,p.y,q.x,q.y,r.x,r.y];
+    },
+    arc: function(m,a) {
+	var ch = this.jc.ctx.canvas.height;
+	var x,y;
+	x = a[0];
+	y = ch - a[1];
+	var p = m.applyTransformation(x,y);
+	p.y *= -1;
+	p.y += ch;
+	return [p.x,p.y,a[2],a[3],a[4],a[5]];
+    },
+    rect: function(m,a) {
+	var ch = this.jc.ctx.canvas.height;
+	var x,y;
+	x = a[0];
+	y = ch - a[1];
+	var p = m.applyTransformation(x,y);
+	p.y *= -1;
+	p.y += ch;
+	return [p.x,p.y,a[2],a[3]];
+    }
+    
+}
+
+function Parameter(t) {
+    this.value = t.value;
+
+    if (typeof this[t.type] !== "undefined")
+	this[t.type](t);
+}
+
+/*
+  Text box.
+  Options:
+  title - displayed above box
+  value - initial text
+  callback - callback function on changes
+*/
+Parameter.prototype.text = function(t) {
+    var self,title,n,i,f;
+    self = this;
+    title = t.title;
+    if (typeof title === "undefined")
+	title = "Type some text";
+    i = t.value;
+    this.value = i;
+    f = t.callback;
+    if (typeof(i) === "undefined")
+	i = '';
+    var tname = $('<span>');
+    tname.text(title + ':');
+    tname.addClass('parameter');
+    tname.addClass('text');
+    var tfield = $('<input>');
+    tfield.addClass('parameter');
+    tfield.addClass('text');
+    tfield.attr('type','text');
+    tfield.val(i);
+    var cfn;
+    if (typeof(f) === "function") {
+	cfn = function(e) {
+	    self.value = $(e.target).val();
+	    f($(e.target).val());
+	    return false;
+	}
+    } else {
+	cfn = function(e) {
+	    self.value = $(e.target).val();
+	    return false;
+	}
+    }
+    tfield.change(cfn);
+    this.setValue = function(v) {
+	tfield.val(v);
+    }
+    var pdiv = $('<div>');
+    pdiv.addClass('parameter');
+    pdiv.append(tname);
+    pdiv.append(tfield);
+    this.params.append(pdiv);
+}
+
+Parameter.prototype.number = function(t) {
+    var self,title,a,b,v,i,f;
+    self = this;
+    title = t.title;
+    if (typeof title === "undefined")
+	title = "Choose a number";
+    a = t.min;
+    b = t.max;
+    v = t.step;
+    i = t.value;
+    f = t.callback;
+    if (typeof a === 'undefined')
+    {
+	a = 0;
+	b = 1;
+	v = 0.1;
+    }
+    if (typeof i === 'undefined')
+	i = a;
+    if (typeof v === 'undefined')
+	v = 1;
+    this.value = i;
+    var pdiv = $('<div>');
+    pdiv.addClass('parameter');
+    var slider = $('<div>');
+    var tval = $('<span>');
+    var sfn,cfn;
+    cfn = function(e,u) {
+	self.value = parseInt(u.value);
+	tval.text(u.value);
+    }
+    if (typeof(f) === "function") {
+	sfn = function(e,u) {
+	    self.value = parseInt(u.value);
+	    tval.text(u.value);
+	    f(u.value);
+	}
+    }
+    slider.slider({
+	slide: cfn,
+	stop: sfn,
+	min: a,
+	max: b,
+	value: i,
+	step: v
+    });
+    this.setValue = function(v) {
+	slider.slider("value",v);
+	tval.text(v);
+    };
+    var tname = $('<span>');
+    tname.text(title);
+    tname.addClass('parameter');
+    tname.addClass('text');
+    tval.text(i);
+    tval.addClass('parameter');
+    tval.addClass('value');
+    pdiv.append(tname);
+    pdiv.append(tval);
+    pdiv.append(slider);
+    this.params.append(pdiv);
+}
+
+Parameter.prototype.select = function(t) {
+    var self,title,o,i,f;
+    self = this;
+    title = t.title;
+    if (typeof title === "undefined")
+	title = "Choose an option";
+    o = t.options;
+    i = t.value;
+    f = t.callback;
+    var pdiv = $('<div>');
+    pdiv.addClass('parameter');
+    var tname = $('<span>');
+    tname.text(title);
+    tname.addClass('parameter');
+    tname.addClass('select');
+    var sel = $('<select>');
+    var op;
+    var v;
+    for (var j = 0; j < o.length; j++) {
+	op = $('<option>');
+	v = o[j];
+	op.val(v);
+	op.text(v);
+	if (v === i) {
+	    op.attr('selected',true);
+	}
+	sel.append(op);
+    }
+    this.setValue = function(v) {
+	sel.val(v);
+    };
+    var cfn;
+    if (typeof(f) === "function") {
+	cfn = function(e) {
+	    self.value = $(e.target).val();
+	    f($(e.target).val());
+	    return false;
+	}
+    } else {
+	cfn = function(e) {
+	    self.value = $(e.target).val();
+	    return false;
+	}
+    }
+    sel.change(cfn);
+    pdiv.append(tname);
+    pdiv.append(sel);
+    this.params.append(pdiv);
+}
+
+Parameter.prototype.watch = function(t) {
+    var title,f;
+    title = t.title;
+    if (typeof title === "undefined")
+	title = "Watching";
+    f = t.watch;
+    var tname = $('<span>');
+    tname.text(title + ':');
+    tname.addClass('parameter');
+    tname.addClass('watch_title');
+    var tfield = $('<span>');
+    tfield.addClass('parameter');
+    tfield.addClass('watch_expression');
+    var pdiv = $('<div>');
+    pdiv.addClass('parameter');
+    pdiv.append(tname);
+    pdiv.append(tfield);
+    this.params.append(pdiv);
+    this.jc.jsState.watches.push(
+	function() {
+	    tfield.text(f());
+	}
+    );
+}
+
+Parameter.prototype.colour = function (t) {
+    var self,title,ic,f;
+    self = this;
+    title = t.title;
+    if (typeof title === "undefined")
+	title = "Select a colour";
+    ic = new Colour(t.value);
+    this.value = ic;
+    f = t.callback;
+    var tname = $('<span>');
+    tname.text(title + ':');
+    tname.addClass('parameter');
+    tname.addClass('colour');
+    var tfield = $('<input>');
+    tfield.addClass('parameter');
+    tfield.addClass('colour');
+    tfield.attr('type','color');
+    tfield.val(ic.toHex());
+    this.setValue = function(c) {
+	tfield.val(new Colour(c).toHex());
+    };
+    var cfn;
+    if (typeof(f) === "function") {
+	cfn = function(e) {
+	    self.value = new Colour($(e.target).val());
+	    f(new Colour($(e.target).val()));
+	    return false;
+	}
+    } else {
+	cfn = function(e) {
+	    self.value = new Colour($(e.target).val());
+	    return false;
+	}
+    }
+    tfield.on('input',cfn);
+    var pdiv = $('<div>');
+    pdiv.addClass('parameter');
+    pdiv.append(tname);
+    pdiv.append(tfield);
+    this.params.append(pdiv);
+}
+
+Parameter.prototype.clear = function() {
+    this.params.empty();
+}
+
+Parameter.prototype.action = function(t) {
+    var self,name,f;
+    self = this;
+    name = t.name;
+    if (typeof name === "undefined")
+	name = "Click";
+    f = t.callback;
+    var tfield = $('<input>');
+    tfield.addClass('parameter');
+    tfield.addClass('action');
+    tfield.attr('type','button');
+    tfield.val(name);
+    tfield.click(function() {f(); return false;});
+    var pdiv = $('<div>');
+    pdiv.addClass('parameter');
+    pdiv.append(tfield);
+    this.params.append(pdiv);
+}
+
+Parameter.prototype.boolean = function(t) {
+    var self,title,i,f;
+    self = this;
+    title = t.title;
+    if (typeof title === "undefined")
+	title = "True/False";
+    i = t.value;
+    f = t.callback;
+    if (typeof(i) === "undefined")
+	i = true;
+    var tname = $('<span>');
+    tname.text(title + ':');
+    tname.addClass('parameter');
+    tname.addClass('boolean');
+    var tfield = $('<input>');
+    tfield.addClass('parameter');
+    tfield.addClass('boolean');
+    tfield.addClass('onoffswitch-checkbox');
+    tfield.attr('type','checkbox');
+    tfield.attr('checked',i);
+    tfield.uniqueId();
+    this.setValue = function(v) {
+	tfield.prop("checked",v);
+    };
+    var lbl = $('<label>');
+    lbl.addClass('onoffswitch-label');
+    lbl.attr('for',tfield.attr('id'));
+    var spna = $('<div>');
+    spna.addClass('onoffswitch-inner');
+    var spnb = $('<span>');
+    spnb.addClass('onoffswitch-switch');
+    var dv = $('<div>');
+    dv.addClass('onoffswitch');
+    var cfn;
+    if (typeof(f) === "function") {
+	cfn = function(e) {
+	    self.value = $(e.target).is(':checked');
+	    f($(e.target).is(':checked'));
+	    return false;
+	}
+    } else {
+	cfn = function(e) {
+	    self.value = $(e.target).is(':checked');
+	    return false;
+	}
+    }
+    tfield.change(cfn);
+    var pdiv = $('<div>');
+    pdiv.addClass('parameter');
+    pdiv.append(tname);
+    pdiv.append(dv);
+    this.params.append(pdiv);
+    dv.append(tfield);
+    dv.append(lbl);
+    lbl.append(spna);
+    lbl.append(spnb);
+}
+
 
 /*
 For inserting a load of variables into a JS block
