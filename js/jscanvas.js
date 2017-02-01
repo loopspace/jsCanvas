@@ -1541,66 +1541,95 @@ Point = Vec2
   treat the result as if a Vec2 was a complex number.
 */
 
-Vec2.prototype.add = function(a,b) {
-    if (typeof(b) === 'undefined') {
-	b = a;
-	a = this;
-    }
-    if (b instanceof Number || typeof(b) === 'number') {
-	return new Vec2(a.x+b,a.y);
-    } else if (a instanceof Number || typeof(a) === 'number') {
-	return new Vec2(a + b.x,b.y);
+Vec2.prototype.add = function(a) {
+    if (a instanceof Number || typeof(a) === 'number') {
+	return new Vec2(this.x+a,this.y);
     } else {
-	return new Vec2(a.x + b.x, a.y + b.y);
+	return new Vec2(this.x + a.x, this.y + a.y);
     }
+}
+
+Vec2.prototype.increment = function(a) {
+    if (a instanceof Number || typeof(a) === 'number') {
+	this.x += a;
+    } else {
+	this.x += a.x;
+	this.y += a.y;
+    }
+    return this;
 }
     
-Vec2.prototype.subtract = function(a,b) {
-    if (typeof(b) === 'undefined') {
-	b = a;
-	a = this;
-    }
-    if (b instanceof Number || typeof(b) === 'number') {
-	return new Vec2(a.x-b,a.y);
-    } else if (a instanceof Number || typeof(a) === 'number') {
-	return new Vec2(a - b.x,-b.y);
+Vec2.prototype.subtract = function(a) {
+    if (a instanceof Number || typeof(a) === 'number') {
+	return new Vec2(this.x - a,this.y);
     } else {
-	return new Vec2(a.x - b.x, a.y - b.y);
+	return new Vec2(this.x - a.x, this.y - a.y);
     }
 }
 
-Vec2.prototype.multiply = function(a,b) {
-    if (typeof(b) === 'undefined') {
-	b = a;
-	a = this;
-    }
-    if (b instanceof Number || typeof(b) === 'number') {
-	return new Vec2(a.x*b,a.y*b);
-    } else if (a instanceof Number || typeof(a) === 'number') {
-	return new Vec2(a * b.x, a * b.y);
+Vec2.prototype.decrement = function(a) {
+    if (a instanceof Number || typeof(a) === 'number') {
+	this.x -= a;
     } else {
-	return new Vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+	this.x -= a.x;
+	this.y -= a.y;
+    }
+    return this;
+}
+    
+Vec2.prototype.multiply = function(a) {
+    if (a instanceof Number || typeof(a) === 'number') {
+	return new Vec2(this.x*a,this.y*a);
+    } else {
+	return new Vec2(this.x * a.x - this.y * a.y, this.x * a.y + this.y * a.x);
     }
 }
 
-Vec2.prototype.divide = function(a,b) {
-    if (typeof(b) === 'undefined') {
-	b = a;
-	a = this;
+Vec2.prototype.multiplyBy = function(a) {
+    if (a instanceof Number || typeof(a) === 'number') {
+	this.x *= a;
+	this.y *= a;
+    } else {
+	var x = this.x * a.x - this.y * a.y;
+	var y = this.x * a.y + this.y * a.x;
+	this.x = x;
+	this.y = y;
     }
+    return this;
+}
+
+Vec2.prototype.divide = function(a) {
     var l;
-    if (b instanceof Number || typeof(b) === 'number') {
-	return new Vec2(a.x/b,a.y/b);
-    } else if (a instanceof Number || typeof(a) === 'number') {
-	l = b.lenSqr();
-	return new Vec2(a * b.x/l, -a * b.y/l);
+    if (a instanceof Number || typeof(a) === 'number') {
+	return new Vec2(this.x/a,this.y/a);
     } else {
-	return new Vec2((a.x * b.x + a.y * b.y)/l, (-a.x * b.y + a.y * b.x)/l);
+	l = a.lenSqr();
+	return new Vec2((this.x * a.x + this.y * a.y)/l, (-this.x * a.y + this.y * a.x)/l);
     }
+}
+
+Vec2.prototype.divideBy = function(a) {
+    if (a instanceof Number || typeof(a) === 'number') {
+	this.x /= a;
+	this.y /= a;
+    } else {
+	var l = a.lenSqr();
+	var x = (this.x * a.x + this.y * a.y)/l;
+	var y = (-this.x * a.y + this.y * a.x)/l;
+	this.x = x;
+	this.y = y;
+    }
+    return this;
 }
 
 Vec2.prototype.unminus = function() {
     return new Vec2(-this.x,-this.y);
+}
+
+Vec2.prototype.negate = function() {
+    this.x *= -1;
+    this.y *= -1;
+    return this;
 }
 
 Vec2.prototype.equals = function(v) {
@@ -1626,27 +1655,56 @@ Vec2.prototype.normalise = function() {
 
 Vec2.prototype.normalize = Vec2.prototype.normalise;
 
-Vec2.prototype.dist = function(v) {
-	var x = this.x - v.x;
-	var y = this.y - v.y;
-	return Math.sqrt(x*x + y*y);
+Vec2.prototype.renormalise = function() {
+    var l = this.len();
+    if (l !== 0) {
+	this.x /= l;
+	this.y /= l;
+    } else {
+	this.x = 1;
+	this.y = 0;
     }
+    return this;
+}
+
+Vec2.prototype.renormalize = Vec2.prototype.renormalise;
+
+Vec2.prototype.dist = function(v) {
+    var x = this.x - v.x;
+    var y = this.y - v.y;
+    return Math.sqrt(x*x + y*y);
+}
 
 Vec2.prototype.distSqr = function(v) {
-	var x = this.x - v.x;
-	var y = this.y - v.y;
-	return x*x + y*y;
-    }
+    var x = this.x - v.x;
+    var y = this.y - v.y;
+    return x*x + y*y;
+}
 
 Vec2.prototype.rotate = function(a) {
-	var x = this.x * Math.cos(a*Math.PI/180) - this.y * Math.sin(a*Math.PI/180);
-	var y = this.x * Math.sin(a*Math.PI/180) + this.y * Math.cos(a*Math.PI/180);
-	return new Vec2(x,y);
-    }
+    var x = this.x * Math.cos(a*Math.PI/180) - this.y * Math.sin(a*Math.PI/180);
+    var y = this.x * Math.sin(a*Math.PI/180) + this.y * Math.cos(a*Math.PI/180);
+    return new Vec2(x,y);
+}
+
+Vec2.prototype.rotateBy = function(a) {
+    var x = this.x * Math.cos(a*Math.PI/180) - this.y * Math.sin(a*Math.PI/180);
+    var y = this.x * Math.sin(a*Math.PI/180) + this.y * Math.cos(a*Math.PI/180);
+    this.x = x;
+    this.y = y;
+    return this;
+}
 
 Vec2.prototype.rotate90 = function() {
-	return new Vec2(-this.y,this.x);
-    }
+    return new Vec2(-this.y,this.x);
+}
+
+Vec2.prototype.rotateBy90 = function() {
+    var x= -this.y;
+    this.y = this.x;
+    this.x = x;
+    return this;
+}
 
 Vec2.prototype.angleBetween = function(v) {
     return (Math.atan2(v.y,v.x) - Math.atan2(this.y,this.x))*180/Math.PI;
@@ -2007,12 +2065,12 @@ Parameter.prototype.number = function(t) {
     var tval = $('<span>');
     var sfn,cfn;
     cfn = function(e,u) {
-	self.value = parseInt(u.value);
+	self.value = parseFloat(u.value);
 	tval.text(u.value);
     }
     if (typeof(f) === "function") {
 	sfn = function(e,u) {
-	    self.value = parseInt(u.value);
+	    self.value = parseFloat(u.value);
 	    tval.text(u.value);
 	    f(u.value);
 	}
