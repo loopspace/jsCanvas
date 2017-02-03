@@ -1207,6 +1207,43 @@ function Colour(r,g,b,a) {
 	    g = m[1];
 	    b = m[2];
 	    a = m[3];
+	} else if (r.substr(0,3) == 'hsl') {
+	    var m = r.match(/(\d+)/g);
+	    var h = (m[0]/60)%6;
+	    var s = m[1]/100;
+	    var l = m[2]/100;
+	    var c = (1 - Math.abs(2*l - 1))*s;
+	    var x = c * (1 - Math.abs(h%2 - 1));
+	    var m = l - c/2;
+	    if (h <= 1) {
+		r = c + m;
+		g = x + m;
+		b = m;
+	    } else if (h <= 2) {
+		r = x + m;
+		g = c + m;
+		b = m;
+	    } else if (h <= 3) {
+		r = m;
+		g = c + m;
+		b = x + m;
+	    } else if (h <= 4) {
+		r = m;
+		g = x + m;
+		b = c + m;
+	    } else if (h <= 5) {
+		r = x + m;
+		g = m;
+		b = c + m;
+	    } else {
+		r = c + m;
+		g = m;
+		b = x + m;
+	    }
+	    r *= 255;
+	    g *= 255;
+	    b *= 255;
+	    a = m[3];
 	} else if (svg[r.replace(/\s+/g,'').toLowerCase()]) {
 	    r = r.replace(/\s+/g,'').toLowerCase();
 	    a = svg[r].a;
