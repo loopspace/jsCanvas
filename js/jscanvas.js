@@ -66,7 +66,7 @@ function jsCanvas(c,o,p,pl) {
 	    offset = codetxt.split('\n').length - 1 + 4; // not currently used
 	    codetxt += '\n' + c + '\n' + self.postjs(true);
 	    code = function() { eval(codetxt) };
-	} else {
+	} else if (typeof c == 'function') {
 	    code = c;
 	    codetxt = c.toString();
 	    offset = 0;
@@ -159,7 +159,7 @@ function jsCanvas(c,o,p,pl) {
     */
     this.restartCode = function() {
 	self.stopJS();
-	self.executeJS(code,true);
+	self.executeJS(null,true);
     }
     
     /*
@@ -1150,6 +1150,11 @@ How should the angles interact with the transformation?
 	output: {
 	    clear: function() {
 		output.text('');
+	    }
+	},
+	parameters: {
+	    clear: function() {
+		params.empty();
 	    }
 	},
 	displayMode: function(m) {
@@ -2252,10 +2257,6 @@ Parameter.prototype.colour = function (t) {
     pdiv.append(tname);
     pdiv.append(tfield);
     this.params.append(pdiv);
-}
-
-Parameter.prototype.clear = function() {
-    this.params.empty();
 }
 
 Parameter.prototype.action = function(t) {
