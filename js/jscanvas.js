@@ -204,7 +204,7 @@ function jsCanvas(c,o,p,pl) {
 		    strokeColour: new Colour(255,255,255,255),
 		    strokeWidth: 1,
 		    rectMode: 0,
-		    ellipseMode: 0,
+		    ellipseMode: 2,
 		    arcMode: 0,
 		    bezierMode: 0,
 		    textMode: 0,
@@ -222,7 +222,7 @@ function jsCanvas(c,o,p,pl) {
 		strokeColour: new Colour(255,255,255,255),
 		strokeWidth: 1,
 		rectMode: 0,
-		ellipseMode: 0,
+		ellipseMode: 2,
 		arcMode: 0,
 		bezierMode: 0,
 		textMode: 0,
@@ -921,17 +921,22 @@ How should the angles interact with the transformation?
 	    if (typeof(h) === "undefined") {
 		h = w;
 	    }
-	    if (self.jsState.style[0].ellipseMode == 1) {
+	    
+	    if (self.jsState.style[0].ellipseMode == 0) {
+		w /=2;
+		h /=2;
+		x += w;
+		y += h;
+	    } else if (self.jsState.style[0].ellipseMode == 1) {
 		w -=x;
 		h -=y;
+		w /=2;
+		h /=2;
+		x += w;
+		y += h;
 	    } else if (self.jsState.style[0].ellipseMode == 2) {
-		x -= w/2;
-		y -= h/2;
-	    } else if (self.jsState.style[0].ellipseMode == 3) {
-		x -= w/2;
-		y -= h/2;
-		w *= 2;
-		h *= 2;
+		w /= 2;
+		h /= 2;
 	    }
 	    var p = self.applyTransformation(x,y);
 	    var r = self.applyTransformationNoShift(w,0);
@@ -1494,8 +1499,8 @@ Transformation.prototype.inverse = function() {
     nm[2] = -this[2]/d;
     nm[3] = -this[3]/d;
     nm[4] = this[1]/d;
-    nm[5] = - nm[1] * nm[5] - nm[3] * nm[6];
-    nm[6] = - nm[2] * nm[5] - nm[4] * nm[6];
+    nm[5] = - nm[1] * this[5] - nm[3] * this[6];
+    nm[6] = - nm[2] * this[5] - nm[4] * this[6];
     return new Transformation(nm);
 }
 
@@ -1757,8 +1762,8 @@ Vec2.prototype.angle = function(v) {
 }
 
 Vec2.prototype.toString = function() {
-	return '(' + this.x + ',' + this.y + ')';
-    }
+    return '(' + this.x + ',' + this.y + ')';
+}
 
 /*
   Path is a subobject of jsCanvas so that it has access to the
@@ -2042,12 +2047,13 @@ Parameter.prototype.text = function(t) {
     if (typeof title === "undefined")
 	title = "Type some text";
     i = t.value;
-    this.value = i;
-    f = t.callback;
     if (typeof(i) === "undefined")
 	i = '';
+    this.value = i;
+    f = t.callback;
     var tname = $('<span>');
-    tname.text(title + ':');
+    if (title != "")
+	tname.text(title + ':');
     tname.addClass('parameter');
     tname.addClass('text');
     var tfield = $('<input>');
@@ -2199,7 +2205,8 @@ Parameter.prototype.watch = function(t) {
 	title = "Watching";
     f = t.watch;
     var tname = $('<span>');
-    tname.text(title + ':');
+    if (title != "")
+	tname.text(title + ':');
     tname.addClass('parameter');
     tname.addClass('watch_title');
     var tfield = $('<span>');
@@ -2227,7 +2234,8 @@ Parameter.prototype.colour = function (t) {
     this.value = ic;
     f = t.callback;
     var tname = $('<span>');
-    tname.text(title + ':');
+    if (title != "")
+	tname.text(title + ':');
     tname.addClass('parameter');
     tname.addClass('colour');
     var tfield = $('<input>');
@@ -2289,7 +2297,8 @@ Parameter.prototype.boolean = function(t) {
     if (typeof(i) === "undefined")
 	i = true;
     var tname = $('<span>');
-    tname.text(title + ':');
+    if (title != "")
+	tname.text(title + ':');
     tname.addClass('parameter');
     tname.addClass('boolean');
     var tfield = $('<input>');
