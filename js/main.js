@@ -30,10 +30,15 @@ function init() {
 				     matchBrackets: true,
 				     mode: "javascript"
 				 }
-				);
+				    );
+
     var cvs = $('#cvs')[0];
     var ctx = cvs.getContext('2d');
-    var jc = new jsCanvas(ctx,$('#output'),$('#parameters'),$('#panel'));
+    var out = document.getElementById('output');
+    var param = document.getElementById('parameters');
+    var panel = document.getElementById('panel');
+    var jc = new jsCanvas(ctx,out,param,panel); //$('#output'),$('#parameters'),$('#panel'));
+
     var tabs = new Tabs($('#tabs'),cm);
     var code = localStorage.getItem('code');
     if (code !== null) {
@@ -45,7 +50,6 @@ function init() {
     } else {
 	cm.setValue($('#js_template').text().trim());
     }
-
     $('#panel').data('origWidth',$('#panel').width());
     $('#canvas').data('origMargin',$('#canvas').css('marginLeft'));
 
@@ -78,12 +82,12 @@ function init() {
     });
 
     startEditing(jc);
+
     var theme = localStorage.getItem('theme');
     if (theme != '') {
 	$('#theme option').filter(function () { return $(this).html() == theme}).attr('selected', 'selected');
     };
     $('#theme').trigger('change');
-
     if (qs['project']) {
 	var project = qs['project'];
 	if (project.slice(-1) == '/') {
