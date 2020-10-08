@@ -1,3 +1,5 @@
+//TODO: Remove jquery (possibly only if no parameters available)
+
 /*
 This is our wrapper around the js execution
 */
@@ -13,7 +15,9 @@ function jsCanvas(c,o,p,pl) {
     var output = o; // output pane
     var params = p; // parameters pane
     var panel = pl; // parameter panel
-    p.submit(function() {return false;}); // disable submission
+    if (p)
+	p.addEventListener('submit',function(e) {e.preventDefault(); return false;}); // disable submission
+
     var jsDraw; // the draw cycle animation
     var jsGrExt; // our graphical extensions
     var jsG; // a global table
@@ -57,8 +61,10 @@ function jsCanvas(c,o,p,pl) {
     this.executeJS = function(c,cl) {
 	var offset;
 	jsG = new Table;
-	pl.css('display','block');
-	$(window).trigger('resize');
+	if (panel)
+	    panel.style.display = 'block';
+	var evt = new Event ('resize');
+	window.dispatchEvent(evt);
 	
 	self.initialiseJS();
 	if (typeof c == 'string') {
@@ -71,13 +77,13 @@ function jsCanvas(c,o,p,pl) {
 	    codetxt = c.toString();
 	    offset = 0;
 	}
-	if (cl) {
-	    output.text('');
-	    output.css('color','black');
+	if (cl && output) {
+	    output.innerHTML = '';
+	    output.style.color = 'black';
 	    self.clear();
 	}
-	sTime = Date.now();
-	$(self.ctx.canvas).focus();
+	sTime = performance.now();
+	self.ctx.canvas.focus();
 	try {
 	    code(jsG);
 	} catch (e) {
@@ -127,21 +133,27 @@ function jsCanvas(c,o,p,pl) {
             emsg = e.message.toString();
         }
 
-	var out = $('#output');
-	if (!out.is(':empty')) {
-	    out.append($('<br>'));
+	if (output) {
+	    var elt;
+	    if (!output.hasChildNodes()) {
+		elt = document.createElement('br');
+		output.appendChild(elt);
+	    }
+	    var errdiv = document.createElement('div');
+	    errdiv.classList.add('error');
+	    var errtype = document.createElement('span');
+	    var errtxt = document.createTextNode(e.name + ':');
+	    errtype.appendChild(errtxt);
+	    errdiv.appendChild(errtype);
+	    var errmsg = document.createElement('span');
+	    var errmsgtxt = document.createTextNode(emsg);
+	    errmsg.appendChild(errmsgtxt);
+	    errdiv.appendChild(errmsg);
+	    output.appendChild(errdiv);
+	    output.scrollTop = output.scrollHeight;
+	} else {
+	    console.log(e.name + ' : ' + emsg);
 	}
-	var errdiv = $('<div>');
-	errdiv.addClass('error');
-	var errtype = $('<span>');
-	errtype.text(e.name + ":");
-	errdiv.append(errtype);
-	var errmsg = $('<span>');
-	errmsg.text(emsg);
-	errdiv.append(errmsg);
-	out.append(errdiv);
-	var outdiv = $('#outdiv');
-	outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
     }
 
     /*
@@ -179,10 +191,10 @@ function jsCanvas(c,o,p,pl) {
 	if (jsDraw) {
 	    if (jsDraw.isPaused) {
 		jsDraw.resume();
-		$(e.target).text('Pause');
+		e.target.innerHTML = 'Pause';
 	    } else {
 		jsDraw.pause();
-		$(e.target).text('Resume');
+		e.target.innerHTML = 'Resume';
 	    }
 	}
 	return false;
@@ -288,7 +300,8 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	window.blockMenuHeaderScroll = true;
 	self.recordTouch(e);
 	inTouch = true;
-	$(self.ctx.canvas).on('mousemove touchmove',self.recordTouch);
+	self.ctx.canvas.addEventListener('mousemove',self.recordTouch);
+	self.ctx.canvas.addEventListener('touchmove',self.recordTouch);
     }
 
     this.stopTouch = function(e) {
@@ -296,12 +309,18 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	window.blockMenuHeaderScroll = false;
 	if (inTouch)
 	    self.recordTouch(e);
-	$(self.ctx.canvas).off('mousemove touchmove');
+	self.ctx.canvas.removeEventListener('mousemove',self.recordTouch);
+	self.ctx.canvas.removeEventListener('touchmove',self.recordTouch);
 	inTouch = false;
     }
 
-    $(self.ctx.canvas).on('mousedown touchstart',self.startTouch);
-    $(self.ctx.canvas).on('mouseleave mouseup touchend touchcancel',self.stopTouch);
+    
+    self.ctx.canvas.addEventListener('mousedown',self.startTouch);
+    self.ctx.canvas.addEventListener('touchstart',self.startTouch);
+    self.ctx.canvas.addEventListener('mouseleave',self.stopTouch);
+    self.ctx.canvas.addEventListener('mouseup',self.stopTouch);
+    self.ctx.canvas.addEventListener('touchend',self.stopTouch);
+    self.ctx.canvas.addEventListener('touchcancel',self.stopTouch);
 
     this.recordTouch = (function() {
 	var prevTouch;
@@ -310,7 +329,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    var s;
 	    var px,py,dx,dy,x,y,pgx,pgy,id,radx;
 	    if (e.type == 'touchstart' || e.type == 'touchmove' || e.type == 'touchend' || e.type == 'touchcancel' ) {
-		var touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+		var touch = e.touches[0] || e.changedTouches[0];
 		pgx = touch.pageX;
 		pgy = touch.pageY;
 		id = touch.identifier;
@@ -318,8 +337,8 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 		pgx = e.pageX;
 		pgy = e.pageY;
 	    }
-	    x = Math.floor(pgx - $(self.ctx.canvas).offset().left);
-	    y = parseInt($(self.ctx.canvas).offset().top,10) + parseInt($(self.ctx.canvas).attr('height'),10) - pgy;
+	    x = Math.floor(pgx - self.ctx.canvas.offsetLeft);
+	    y = parseInt(self.ctx.canvas.offsetTop,10) + parseInt(self.ctx.canvas.offsetHeight,10) - pgy;
 	    if (e.type == 'mousedown' || e.type == 'touchstart') {
 		s = 0;
 	    } else if (e.type == 'mousemove' || e.type == 'touchmove') {
@@ -338,7 +357,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    var t = {
 		state: s,
 		id: id,
-		time: e.timeStamp - sTime,
+		time: getHighResTimeStamp(e) - sTime,
 		x: x,
 		y: y,
 		prevX: px,
@@ -367,7 +386,7 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	}
 	var k = {
 	    state: s,
-	    time: e.timeStamp - sTime,
+	    time: getHighResTimeStamp(e) - sTime,
 	    key: e.key,
 	    code: e.which,
 //	    repeat: e.originalEvent.repeat,
@@ -379,7 +398,9 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	self.jsState.keys.push(k);
     }
 
-    $(self.ctx.canvas).on('keydown keypress keyup',self.recordKey);
+    self.ctx.canvas.addEventListener('keydown',self.recordKey);
+    self.ctx.canvas.addEventListener('keypress',self.recordKey);
+    self.ctx.canvas.addEventListener('keyup',self.recordKey);
 
     this.prejs = function(b) {
 	var str;
@@ -413,8 +434,8 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    function(et,dt) {
 		jsG.set('ElapsedTime',et);
 		jsG.set('DeltaTime',dt);
-		jsG.set('WIDTH',parseInt($(self.ctx.canvas).attr('width'),10));
-		jsG.set('HEIGHT',parseInt($(self.ctx.canvas).attr('height'),10));
+		jsG.set('WIDTH',parseInt(self.ctx.canvas.offsetWidth,10));
+		jsG.set('HEIGHT',parseInt(self.ctx.canvas.offsetHeight,10));
 		self.jsState.transformation = [new Transformation()];
 		self.ctx = gctx;
 		try {
@@ -450,10 +471,11 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 
     this.initialiseJS = function() {
 	var g = jsG;
-	params.empty();
+	if (params)
+	    params.innerHTML = '';
 	// Canvas dimensions
-	g.set('WIDTH',parseInt($(self.ctx.canvas).attr('width'),10));
-	g.set('HEIGHT',parseInt($(self.ctx.canvas).attr('height'),10));
+	g.set('WIDTH',parseInt(self.ctx.canvas.offsetWidth,10));
+	g.set('HEIGHT',parseInt(self.ctx.canvas.offsetHeight,10));
 	// Rectangle and Ellipse modes
 	g.set('CORNER',0);
 	g.set('CORNERS',1);
@@ -502,16 +524,18 @@ Currently only records a single touch.  Needs a bit of work to track multiple to
 	    self.initCycle(d,t,k);
 	},
 	clearOutput: function() {
-	    output.text('');
+	    if (output)
+		output.innerHTML = '';
 	},
 	print: function(x) {
-	    var out = $('#output');
-	    if (!out.is(':empty')) {
-		out.append($('<br>'));
+	    if (output) {
+		if (!output.hasChildNodes()) {
+		    var br = document.createElement('br');
+		    output.appendChild(br);
+		}
+		output.appendChild(document.createTextNode(x));
+		output.scrollTop = outdiv.scrollHeight;
 	    }
-	    out.append(document.createTextNode(x));
-	    var outdiv = $('#outdiv');
-	    outdiv.prop('scrollTop',outdiv.prop('scrollHeight'));
 	},
 	rect: function(x,y,w,h) {
 	    if (x instanceof Vec2) {
@@ -1084,10 +1108,10 @@ How should the angles interact with the transformation?
 		h = w.y;
 		w = w.x;
 	    }
-	    var c = $('<canvas>');
-	    c.prop('width',w);
-	    c.prop('height',h);
-	    return c[0].getContext('2d');
+	    var c = document.createElement('canvas');
+	    c.width = w;
+	    c.height = h;
+	    return c.getContext('2d');
 	},
 	setContext: function(c) {
 	    if (typeof c !== 'undefined') {
@@ -1098,11 +1122,11 @@ How should the angles interact with the transformation?
 	},
 	smooth: function() {
 	    self.ctx.imageSmoothingEnabled = true;
-	    $(self.ctx.canvas).removeClass('pixelated');
+	    self.ctx.canvas.classList.remove('pixelated');
 	},
 	noSmooth: function() {
 	    self.ctx.imageSmoothingEnabled = false;
-	    $(self.ctx.canvas).addClass('pixelated');
+	    self.ctx.canvas.classList.add('pixelated');
 	},
 	sprite: function(img,x,y,w,h) {
 	    if (img.canvas)
@@ -1124,10 +1148,10 @@ How should the angles interact with the transformation?
 		y = 0;
 	    }
 	    if (typeof(h) === 'undefined') {
-		h = $(img).prop('height');
+		h = img.height;
 	    }
 	    if (typeof(w) === 'undefined') {
-		w = $(img).prop('width');
+		w = img.width;
 	    }
 	    var p = self.applyTransformation(x,y+h);
 	    var r = self.applyTransformationNoShift(1,0).normalise();
@@ -1139,36 +1163,39 @@ How should the angles interact with the transformation?
 	},
 	saveImage: function(img,s) {
 	    if (typeof(s) === 'undefined')
-		s = $('#title').text() + '-' + imgNum++;
+		s = document.getElementById('title').innerText + '-' + imgNum++;
 	    img.canvas.toBlob(function(b) {
-		var a = $('<a>');
-		a.attr('href', window.URL.createObjectURL(b));
-		a.attr('download', s + '.png');
-		a.text('Download ' + s);
-		a.addClass('imgDownload');
-		var pdiv = $('<div>');
-		pdiv.addClass('parameter');
-		pdiv.append(a);
-		params.append(pdiv);
+		var a = document.createElement('a');
+		a.href = window.URL.createObjectURL(b);
+		a.download = s + '.png';
+		a.innerHTML = 'Download ' + s;
+		a.classList.add('imgDownload');
+		var pdiv = document.createElement('div');
+		pdiv.classList.add('parameter');
+		pdiv.appendChild(a);
+		params.appendChild(pdiv);
 	    });
 	},
 	output: {
 	    clear: function() {
-		output.text('');
+		if (output)
+		    output.innerHTML = '';
 	    }
 	},
 	parameters: {
 	    clear: function() {
-		params.empty();
+		if (params)
+		    params.innerHTML = '';
 	    }
 	},
 	displayMode: function(m) {
 	    if (m == 0) {
-		pl.css('display','block');
+		panel.style.display = 'block';
 	    } else if (m == 1) {
-		pl.css('display','none');
+		panel.style.display = 'none';
 	    }
-	    $(window).trigger('resize');
+	    var evt = new Event ('resize');
+	    window.dispatchEvent(evt);
 	}
     }
 
@@ -2029,7 +2056,10 @@ Path.prototype.argTransform = {
 function Parameter(t) {
     this.value = t.value;
 
-    if (typeof this[t.type] !== "undefined")
+    if (typeof jQuery === 'function' && !(this.params instanceof jQuery))
+	this.params = $(this.params);
+
+    if (this.params && (typeof this[t.type] !== "undefined"))
 	this[t.type](t);
 }
 
@@ -2437,6 +2467,8 @@ function toHex(d) {
 /*
   From: http://stackoverflow.com/a/9847841
 */
+
+// Need to remove jQuery from this
 
 var getTextHeight = function(font,s) {
 
