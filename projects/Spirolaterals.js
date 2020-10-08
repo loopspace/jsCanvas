@@ -2,17 +2,18 @@
 //## Main
 
 function setup() {
-  parameter.number("Multiplier","multiplier",1,12,1,3);
-  parameter.number("Clock Number","clock",2,15,1,9);
-  parameter.number("Angle Step","angleStep",2,10,1,4);
-  parameter.number("Fade Factor","fadeFactor",0,1,.1,0);
-  parameter.action("Generate",generate);
+  multiplier = new Parameter({type: "number", title: "Multiplier",min: 1, max: 12, value: 3});
+  clock = new Parameter({type: "number", title: "Clock Number",min: 2,max: 15,value: 9});
+  angleStep = new Parameter({type: "number", title: "Angle Step",min: 2,max: 10,value: 4});
+  fadeFactor = new Parameter({type: "number", title: "Fade Factor",min: 0,max: 1,step: .1,value: 0});
+  interior = new Parameter({type: "boolean", title: "Angle is interior", value: true})
+  new Parameter({type: "action", name: "Generate",callback: generate});
   generate();
   background(40,40,50);
 }
 
 function draw() {
-  background(40,40,50,parameters.fadeFactor*255);
+  background(40,40,50,fadeFactor.value*255);
   stroke(200,30,150);
   strokeWidth(2);
   translate(WIDTH/2,HEIGHT/2);
@@ -25,7 +26,10 @@ function draw() {
 
 function generate() {
   background(40,40,50);
-  var m = parameters.multiplier, n = parameters.clock, da = 360/parameters.angleStep;
+  var m = multiplier.value, n = clock.value, da = 360/angleStep.value;
+  if (interior.value) {
+    da = 180 - da;
+  }
   var l,nl = 1;
   var pts = [(m+n-1)%n+1];
   for (var k = 2; k <= n; k++) {
@@ -36,12 +40,12 @@ function generate() {
     pts.push(l);
     nl++;
   }
-  for (var k = 0; k < parameters.angleStep; k++) {
+  for (var k = 0; k < angleStep.value; k++) {
     for (var l = 0; l < nl; l++) {
       pts.push(pts[l]);
     }
   }
-  nl *= parameters.angleStep;
+  nl *= angleStep.value;
   var ll = new Vec2(0,0), ur = new Vec2(0,0), p = new Vec2(0,0), a = 0;
   lines = [new Vec2(0,0)];
   for (var k = 0; k < nl; k++) {
