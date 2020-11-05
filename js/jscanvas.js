@@ -983,15 +983,18 @@ How should the angles interact with the transformation?
 		y = x.y;
 		x = x.x;
 	    }
-	    if (self.jsState.style[0].ellipseMode == 1) {
-		r -=x;
+
+	    if (self.jsState.style[0].ellipseMode == 0) {
+		r /=2;
+		x += r;
+		y += r;
+	    } else if (self.jsState.style[0].ellipseMode == 1) {
+		r -=Math.max(x,y);
+		r /=2;
+		x += r;
+		y += r;
 	    } else if (self.jsState.style[0].ellipseMode == 2) {
-		x -= r/2;
-		y -= r/2;
-	    } else if (self.jsState.style[0].ellipseMode == 3) {
-		x -= r/2;
-		y -= r/2;
-		r *= 2;
+		r /= 2;
 	    }
 	    var p = self.applyTransformation(x,y);
 	    var d = self.jsState.transformation[0].determinant();
