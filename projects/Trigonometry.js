@@ -14,6 +14,7 @@ function setup() {
 	speed = new Parameter({type: "number", title: "Speed", min: 0, max: 30, step: 1, value: 5});
 //  new Parameter({type: "watch", title: "Angle", fn: function() {if (radians.value) { return Math.round(angle/180*Math.PI*100)/100} else {return Math.round(angle)}}});
   radius = WIDTH/10;
+  ellipseMode(RADIUS);
 }
 
 function draw() {
@@ -156,8 +157,8 @@ function touched(t) {
   } else if (t.state == ENDED) {
     inTouch = false;
   }
-  var p = vec2(t);
-  angle = (360+vec2(1,0).angleBetween(p.subtract(vec2(radius+40,HEIGHT/2))))%360;
+    var p = new Vec2(t);
+    angle = (360+ p.subtract(new Vec2(radius+40,HEIGHT/2)).angle())%360;
 }
 
 function sineCurve(a,b,c,d) {
