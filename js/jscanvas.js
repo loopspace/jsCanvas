@@ -1816,9 +1816,23 @@ Path.prototype.moveTo = function(x,y) {
     this.path.push(["moveTo",[p.x,p.y]]);
     this.point = p;
 }
+
+Path.prototype.moveToR = function(x,y) {
+    var p = this.jc.applyTransformation(x,y);
+    p.increment(this.point);
+    this.path.push(["moveTo",[p.x,p.y]]);
+    this.point = p
+}
 	    
 Path.prototype.lineTo = function(x,y) {
     var p = this.jc.applyTransformation(x,y);
+    this.path.push(["lineTo",[p.x,p.y]]);
+    this.point = p;
+}
+
+Path.prototype.lineToR = function(x,y) {
+    var p = this.jc.applyTransformation(x,y);
+    p.increment(this.point);
     this.path.push(["lineTo",[p.x,p.y]]);
     this.point = p;
 }
@@ -1857,6 +1871,44 @@ Path.prototype.curveTo = function(bx,by,cx,cy,dx,dy) {
     var r = this.jc.applyTransformation(bx,by);
     
     this.path.push(["bezierCurveTo",[r.x,r.y,q.x,q.y,p.x,p.y]]);
+    this.point = p;
+}
+
+Path.prototype.curveToR = function(bx,by,cx,cy,dx,dy) {
+    if (bx instanceof Vec2) {
+	dy = dx
+	dx = cy
+	cy = cx
+	cx = by
+	by = bx.y
+	bx = bx.x
+    }
+    if (cx instanceof Vec2) {
+	dy = dx
+	dx = cy
+	cy = cx.y
+	cx = cx.x
+    }
+    if (dx instanceof Vec2) {
+	dy = dx.y
+	dx = dx.x
+    }
+    if (this.jc.jsState.style[0].bezierMode == 1) {
+	cy += dy;
+	cx += dx;
+	by += this.point.y;
+	bx += this.point.x;
+    }
+    var p = this.jc.applyTransformation(dx,dy);
+    var q = this.jc.applyTransformation(cx,cy);
+    var r = this.jc.applyTransformation(bx,by);
+
+    p.increment(this.point);
+    r.increment(this.point);
+    q.increment(p);
+    
+    this.path.push(["bezierCurveTo",[r.x,r.y,q.x,q.y,p.x,p.y]]);
+    this.point = p;
 }
 /*
   Should the angles of an arc interact with the transformation?
@@ -1876,6 +1928,26 @@ Path.prototype.arc = function(x,y,r,sa,ea,cl) {
     cl = !cl;
     var p = this.jc.applyTransformation(x,y);
     this.path.push(["arc",[p.x,p.y,r,sa,ea,cl]]);
+    this.point = p; // this is wrong.
+}
+
+Path.prototype.arcR = function(x,y,r,sa,ea,cl) {
+    if (x instanceof Vec2) {
+	ea = sa;
+	sa = r;
+	r = y;
+	y = x.y;
+	x = x.x;
+    }
+    if (this.jc.jsState.style[0].arcMode == 1)
+	ea += sa;
+    sa *= -Math.PI/180;
+    ea *= -Math.PI/180;
+    cl = !cl;
+    var p = this.jc.applyTransformation(x,y);
+    p.increment(this.point);
+    this.path.push(["arc",[p.x,p.y,r,sa,ea,cl]]);
+    this.point = p; // this is wrong.
 }
 
 
@@ -1906,6 +1978,35 @@ Path.prototype.rect = function(x,y,w,h) {
 	h *= 2;
     }
     var p = this.jc.applyTransformation(x,y);
+    this.path.push(["rect",[p.x,p.y,w,h]]);
+    this.point = p;
+}
+
+Path.prototype.rectR = function(x,y,w,h) {
+    if (x instanceof Vec2) {
+	h = w;
+	w = y;
+	y = x.y;
+	x = x.x;
+    }
+    if (w instanceof Vec2) {
+	h = w.y;
+	w = w.x;
+    }
+    if (this.jc.jsState.style[0].rectMode == 1) {
+	w -=x;
+	h -=y;
+    } else if (this.jc.jsState.style[0].rectMode == 2) {
+	x -= w/2;
+	y -= h/2;
+    } else if (this.jc.jsState.style[0].rectMode == 3) {
+	x -= w/2;
+	y -= h/2;
+	w *= 2;
+	h *= 2;
+    }
+    var p = this.jc.applyTransformation(x,y);
+    p.increment(this.point);
     this.path.push(["rect",[p.x,p.y,w,h]]);
     this.point = p;
 }
@@ -1956,8 +2057,9 @@ Path.prototype.use = function(opts) {
     }
     if (b) {
 	p = [];
+	var self = this;
 	this.path.forEach(function(v) {
-	    var a = this.argTransform[v[0]](m,v[1]);
+	    var a = self.argTransform[v[0]](self,m,v[1]);
 	    p.push([v[0],a]);
 	});
     } else {
@@ -1993,8 +2095,8 @@ Path.prototype.clear = function() {
 }
 
 Path.prototype.argTransform = {
-    moveTo: function(m,a) {
-	var ch = this.jc.ctx.canvas.height;
+    moveTo: function(path,m,a) {
+	var ch = path.jc.ctx.canvas.height;
 	var x,y;
 	x = a[0];
 	y = ch - a[1];
@@ -2003,8 +2105,8 @@ Path.prototype.argTransform = {
 	p.y += ch;
 	return [p.x,p.y];
     },
-    lineTo: function(m,a) {
-	var ch = this.jc.ctx.canvas.height;
+    lineTo: function(path,m,a) {
+	var ch = path.jc.ctx.canvas.height;
 	var x,y;
 	x = a[0];
 	y = ch - a[1];
@@ -2013,8 +2115,8 @@ Path.prototype.argTransform = {
 	p.y += ch;
 	return [p.x,p.y];
     },
-    bezierCurveTo: function(m,a) {
-	var ch = this.jc.ctx.canvas.height;
+    bezierCurveTo: function(path,m,a) {
+	var ch = path.jc.ctx.canvas.height;
 	var x,y,p;
 	x = a[0];
 	y = ch - a[1];
@@ -2033,8 +2135,8 @@ Path.prototype.argTransform = {
 	r.y += ch;
 	return [p.x,p.y,q.x,q.y,r.x,r.y];
     },
-    arc: function(m,a) {
-	var ch = this.jc.ctx.canvas.height;
+    arc: function(path,m,a) {
+	var ch = path.jc.ctx.canvas.height;
 	var x,y;
 	x = a[0];
 	y = ch - a[1];
@@ -2043,8 +2145,8 @@ Path.prototype.argTransform = {
 	p.y += ch;
 	return [p.x,p.y,a[2],a[3],a[4],a[5]];
     },
-    rect: function(m,a) {
-	var ch = this.jc.ctx.canvas.height;
+    rect: function(path,m,a) {
+	var ch = path.jc.ctx.canvas.height;
 	var x,y;
 	x = a[0];
 	y = ch - a[1];
