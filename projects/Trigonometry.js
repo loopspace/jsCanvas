@@ -12,7 +12,18 @@ function setup() {
   rotateCircle = new Parameter({type: "boolean", title: "Rotate circle",value: false});
   track = new Parameter({type: "select", title: "Track", options: ["x","y","y/x"], value: "y"});
 	speed = new Parameter({type: "number", title: "Speed", min: 0, max: 30, step: 1, value: 5});
-//  new Parameter({type: "watch", title: "Angle", fn: function() {if (radians.value) { return Math.round(angle/180*Math.PI*100)/100} else {return Math.round(angle)}}});
+    new Parameter({
+	type: "watch",
+	title: "Angle",
+	watch: function() {
+	    if (radians.value) {
+		return Math.round(angle/180*Math.PI*100)/100
+	    } else {
+		return Math.round(angle)
+	    }
+	}
+    }
+		 );
   radius = WIDTH/10;
   ellipseMode(RADIUS);
 }
@@ -147,8 +158,10 @@ function draw() {
     circle(x*radius*Math.PI/180,p[track.value],10);
   }
   // update the angle
-  angle += DeltaTime*speed.value/100;
-  angle %= 360;
+  if (!inTouch) {
+    angle += DeltaTime*speed.value/100;
+    angle %= 360;
+  }
 }
 
 function touched(t) {
