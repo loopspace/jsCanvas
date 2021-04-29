@@ -921,15 +921,18 @@ How should the angles interact with the transformation?
 	    var tm = self.ctx.measureText(s);
 	    var f = self.jsState.style[0].fontSize + 'px ' + self.jsState.style[0].font;
 	    var fm = getTextHeight(f,s);
-	    return tm.width,fm.height;
+	    return {width: tm.width,height: fm.height};
 	},
 	font: function (f) {
 	    self.jsState.style[0].font = f;
 	    self.ctx.font = self.jsState.style[0].fontSize + 'px ' + f;
 	},
 	fontSize: function (f) {
-	    self.jsState.style[0].fontSize = f;
-	    self.ctx.font = f + 'px ' + self.jsState.style[0].font;
+	    if (typeof f !== 'undefined') {
+		self.jsState.style[0].fontSize = f;
+		self.ctx.font = f + 'px ' + self.jsState.style[0].font;
+	    }
+	    return self.jsState.style[0].fontSize;
 	},
 	ellipse: function (x,y,w,h) {
 	    if (x instanceof Vec2) {
@@ -2405,9 +2408,11 @@ Parameter.prototype.colour = function (t) {
 Parameter.prototype.action = function(t) {
     var self,name,f;
     self = this;
-    name = t.name;
-    if (typeof name === "undefined")
-	name = "Click";
+    name = "Click";
+    if (typeof t.name !== "undefined")
+	name = t.name;
+    if (typeof t.title !== "undefined")
+	name = t.title;
     f = t.callback;
     var tfield = $('<input>');
     tfield.addClass('parameter');
@@ -2577,29 +2582,60 @@ function toHex(d) {
 
 var getTextHeight = function(font,s) {
 
+    var sp = document.createElement('span');
+    var txt = document.createTextNode(s);
+
+    sp.style.font = font;
+    sp.appendChild(txt);
+
+    var blk = document.createElement('div');
+    blk.style.display = 'inline-block';
+    blk.style.width = '1px';
+    blk.style.height = '0px';
+
+    var dv = document.createElement('div');
+    dv.appendChild(sp);
+    dv.appendChild(blk);
+
+    /*
   var text = $('<span>' + s + '</span>').css({ fontFamily: font });
   var block = $('<div style="display: inline-block; width: 1px; height: 0px;"></div>');
 
   var div = $('<div></div>');
   div.append(text, block);
 
-  var body = $('body');
-  body.append(div);
+    */
+    
+    document.body.appendChild(dv);
 
   try {
 
-    var result = {};
+      var result = {};
+      var blkstyle;
+      var txtstyle;
 
+      blk.style.verticalAlign = 'baseline';
+      result.ascent = blk.offsetTop - sp.offsetTop;
+
+      blk.style.verticalAlign = 'bottom';
+      result.height = blk.offsetTop - sp.offsetTop;
+
+      result.descent = result.height - result.ascent;
+
+      /*
     block.css({ verticalAlign: 'baseline' });
     result.ascent = block.offset().top - text.offset().top;
+
 
     block.css({ verticalAlign: 'bottom' });
     result.height = block.offset().top - text.offset().top;
 
     result.descent = result.height - result.ascent;
+      */
 
   } finally {
-    div.remove();
+      document.body.removeChild(dv);
+//    div.remove();
   }
 
   return result;
